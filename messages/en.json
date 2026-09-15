@@ -1,0 +1,66 @@
+{
+  "app": {
+    "name": "PB Wisdom",
+    "tagline": "Club companion"
+  },
+  "nav": {
+    "home": "Home",
+    "jadwal": "Schedule",
+    "events": "Events",
+    "play": "Play",
+    "profile": "Profile",
+    "club": "Club Admin"
+  },
+  "auth": {
+    "title": "Sign in to PB Wisdom",
+    "subtitle": "Internal member & admin portal",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "google": "Continue with Google",
+    "or": "or",
+    "noAccount": "No account yet?",
+    "hasAccount": "Already have an account?",
+    "pendingTitle": "Waiting for approval",
+    "pendingBody": "An admin is reviewing your request. You'll get in once approved.",
+    "rejectedTitle": "Access denied",
+    "rejectedBody": "Your account is not allowed in. Contact the club admin.",
+    "inviteCode": "Invite code (optional)",
+    "name": "Name"
+  },
+  "home": {
+    "greeting": "Hey, {name}",
+    "nextSession": "Next training",
+    "iuran": "Fee status",
+    "leaderboard": "Leaderboard",
+    "yourRank": "Your rank",
+    "announcement": "Announcement",
+    "recentPhotos": "Recent photos",
+    "pendingMatches": "Awaiting confirmation",
+    "adminPending": "Needs review",
+    "seeAll": "See all"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading…",
+    "empty": "Nothing here yet",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "share": "Share",
+    "upload": "Upload",
+    "search": "Search",
+    "logout": "Sign out",
+    "language": "Language",
+    "install": "Install app",
+    "going": "Going",
+    "notGoing": "Skip",
+    "maybe": "Maybe",
+    "verified": "Paid",
+    "unpaid": "Unpaid",
+    "submitted": "Pending review",
+    "rejected": "Rejected"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "app": {
+    "name": "PB Wisdom",
+    "tagline": "Club companion"
+  },
+  "nav": {
+    "home": "Beranda",
+    "jadwal": "Jadwal",
+    "events": "Event",
+    "play": "Main",
+    "profile": "Profil",
+    "club": "Club Admin"
+  },
+  "auth": {
+    "title": "Masuk ke PB Wisdom",
+    "subtitle": "Portal internal member & admin",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Masuk",
+    "signUp": "Daftar",
+    "google": "Lanjut dengan Google",
+    "or": "atau",
+    "noAccount": "Belum punya akun?",
+    "hasAccount": "Sudah punya akun?",
+    "pendingTitle": "Menunggu persetujuan",
+    "pendingBody": "Admin masih meninjau permintaanmu. Kamu akan bisa masuk setelah disetujui.",
+    "rejectedTitle": "Akses ditolak",
+    "rejectedBody": "Akunmu tidak diizinkan masuk. Hubungi admin club.",
+    "inviteCode": "Kode undangan (opsional)",
+    "name": "Nama"
+  },
+  "home": {
+    "greeting": "Halo, {name}",
+    "nextSession": "Latihan berikutnya",
+    "iuran": "Status iuran",
+    "leaderboard": "Papan peringkat",
+    "yourRank": "Peringkatmu",
+    "announcement": "Pengumuman",
+    "recentPhotos": "Foto terbaru",
+    "pendingMatches": "Menunggu konfirmasi",
+    "adminPending": "Perlu ditinjau",
+    "seeAll": "Lihat semua"
+  },
+  "common": {
+    "save": "Simpan",
+    "cancel": "Batal",
+    "loading": "Memuat…",
+    "empty": "Belum ada data",
+    "confirm": "Konfirmasi",
+    "delete": "Hapus",
+    "edit": "Edit",
+    "share": "Bagikan",
+    "upload": "Upload",
+    "search": "Cari",
+    "logout": "Keluar",
+    "language": "Bahasa",
+    "install": "Pasang aplikasi",
+    "going": "Hadir",
+    "notGoing": "Tidak",
+    "maybe": "Mungkin",
+    "verified": "Lunas",
+    "unpaid": "Belum bayar",
+    "submitted": "Menunggu verifikasi",
+    "rejected": "Ditolak"
+  }
+}

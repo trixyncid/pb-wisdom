@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pb-wisdom-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: pbwisdom
+      POSTGRES_PASSWORD: pbwisdom
+      POSTGRES_DB: pbwisdom
+    volumes:
+      - pb_wisdom_pg:/var/lib/postgresql/data
+
+volumes:
+  pb_wisdom_pg:

@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --court-navy: #0b2a4a;
+  --court-deep: #133a63;
+  --shuttle-sky: #5ec8f2;
+  --shuttle-cyan: #2eb6ea;
+  --kit-white: #ffffff;
+  --mist: #f3f8fc;
+  --mist-2: #e8f3fb;
+  --ink: #0b2a4a;
+  --muted: #64748b;
+  --background: #f3f8fc;
+  --foreground: #0b2a4a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-court-navy: var(--court-navy);
+  --color-shuttle-cyan: var(--shuttle-cyan);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(900px 420px at 100% -10%, rgba(94, 200, 242, 0.35), transparent 55%),
+    radial-gradient(700px 360px at -10% 20%, rgba(19, 58, 99, 0.08), transparent 50%),
+    linear-gradient(180deg, #f7fbff 0%, #eef6fc 45%, #f3f8fc 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.court-stripes {
+  background-image:
+    repeating-linear-gradient(
+      -18deg,
+      rgba(94, 200, 242, 0.12) 0px,
+      rgba(94, 200, 242, 0.12) 18px,
+      transparent 18px,
+      transparent 36px
+    );
+}
+
+.score-glow {
+  text-shadow: 0 0 18px rgba(46, 182, 234, 0.35);
+}
+
+.float-y {
+  animation: floatY 4.5s ease-in-out infinite;
+}
+
+@keyframes floatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.spin-slow {
+  animation: spinSlow 18s linear infinite;
+}
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
