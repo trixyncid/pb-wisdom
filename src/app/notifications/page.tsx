@@ -23,7 +23,7 @@ export default async function NotificationsPage() {
 
   return (
     <AppShell>
-      <div className="mb-5 flex items-center gap-3 pr-14">
+      <div className="mb-5 flex items-center gap-3">
         <Link
           href="/"
           className="rounded-full bg-white p-2 shadow-sm text-[#0b2a4a]"

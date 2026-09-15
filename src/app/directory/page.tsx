@@ -26,7 +26,7 @@ export default async function DirectoryPage({
 
   return (
     <AppShell>
-      <div className="mb-5 flex items-center gap-3 pr-14">
+      <div className="mb-5 flex items-center gap-3">
         <Link
           href="/profile"
           className="rounded-full bg-white p-2 text-[#0b2a4a] shadow-sm"

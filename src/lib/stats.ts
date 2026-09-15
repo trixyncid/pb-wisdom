@@ -10,6 +10,7 @@ export type LeaderboardRow = {
   losses: number;
   played: number;
   winrate: number;
+  form: ("W" | "L")[];
 };
 
 type MatchFilter = "ALL" | "SINGLES" | "DOUBLES";
@@ -23,6 +24,7 @@ export async function getLeaderboard(
       status: MatchStatus.CONFIRMED,
       ...(filter === "ALL" ? {} : { type: filter as MatchType }),
     },
+    orderBy: { playedAt: "desc" },
     include: {
       players: {
         include: {
@@ -41,6 +43,7 @@ export async function getLeaderboard(
       imageUrl: string | null;
       wins: number;
       losses: number;
+      form: ("W" | "L")[];
     }
   >();
 
@@ -54,9 +57,15 @@ export async function getLeaderboard(
         imageUrl: player.user.profile?.imageUrl ?? player.user.image,
         wins: 0,
         losses: 0,
+        form: [],
       };
-      if (player.won === true) existing.wins += 1;
-      else if (player.won === false) existing.losses += 1;
+      if (player.won === true) {
+        existing.wins += 1;
+        if (existing.form.length < 5) existing.form.push("W");
+      } else if (player.won === false) {
+        existing.losses += 1;
+        if (existing.form.length < 5) existing.form.push("L");
+      }
       stats.set(key, existing);
     }
   }
