@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { resolveDisputeAction } from "@/actions/matches";
 import { Button } from "@/components/ui/button";
 
@@ -11,12 +11,8 @@ export function ResolveDisputeButtons({ matchId }: { matchId: string }) {
   function resolve(decision: "CONFIRM" | "DELETE") {
     if (decision === "DELETE" && !window.confirm("Hapus match ini? Tidak bisa dibatalkan.")) return;
     start(async () => {
-      const res = await resolveDisputeAction(matchId, decision);
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success(decision === "CONFIRM" ? "Hasil disahkan" : "Match dihapus");
+      const res = await withToast(resolveDisputeAction(matchId, decision), { success: decision === "CONFIRM" ? "Hasil disahkan" : "Match dihapus" });
+      if (!res.ok) return;
     });
   }
 

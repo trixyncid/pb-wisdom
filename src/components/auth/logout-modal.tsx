@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { LogOut } from "lucide-react";
 import { useUiStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export function LogoutModal() {
   const { logoutOpen, closeLogout } = useUiStore();
@@ -14,6 +15,7 @@ export function LogoutModal() {
   function confirm() {
     start(async () => {
       closeLogout();
+      toast.loading("Keluar…");
       await signOut({ callbackUrl: "/" });
     });
   }

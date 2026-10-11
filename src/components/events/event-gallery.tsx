@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { Trash2, Upload } from "lucide-react";
 import { addEventPhotoAction, deleteEventPhotoAction } from "@/actions/events";
 import { Button } from "@/components/ui/button";
@@ -35,25 +35,20 @@ export function EventGallery({
   function upload() {
     if (!url.trim()) return;
     start(async () => {
-      const res = await addEventPhotoAction(eventId, url.trim(), caption || undefined);
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
+      const res = await withToast(addEventPhotoAction(eventId, url.trim(), caption || undefined), {
+        loading: "Menambahkan foto…",
+        success: "Foto ditambahkan",
+      });
+      if (!res.ok) return;
       setUrl("");
       setCaption("");
-      toast.success("Foto ditambahkan");
     });
   }
 
   function remove(id: string) {
     start(async () => {
-      const res = await deleteEventPhotoAction(id);
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success("Foto dihapus");
+      const res = await withToast(deleteEventPhotoAction(id), { success: "Foto dihapus" });
+      if (!res.ok) return;
     });
   }
 

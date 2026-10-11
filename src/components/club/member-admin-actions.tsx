@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { approveMemberAction, deactivateMemberAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import type { Role, MemberStatus } from "@prisma/client";
@@ -25,12 +25,8 @@ export function MemberAdminActions({
           disabled={pending}
           onClick={() =>
             start(async () => {
-              const res = await approveMemberAction(userId, true);
-              if (!res.ok) {
-                toast.error(res.error);
-                return;
-              }
-              toast.success("Member disetujui");
+              const res = await withToast(approveMemberAction(userId, true), { success: "Member disetujui" });
+              if (!res.ok) return;
             })
           }
         >
@@ -42,12 +38,8 @@ export function MemberAdminActions({
           disabled={pending}
           onClick={() =>
             start(async () => {
-              const res = await approveMemberAction(userId, false);
-              if (!res.ok) {
-                toast.error(res.error);
-                return;
-              }
-              toast.message("Ditolak");
+              const res = await withToast(approveMemberAction(userId, false), { success: "Ditolak" });
+              if (!res.ok) return;
             })
           }
         >
@@ -66,12 +58,8 @@ export function MemberAdminActions({
       disabled={pending}
       onClick={() =>
         start(async () => {
-          const res = await deactivateMemberAction(userId, status !== "ACTIVE");
-          if (!res.ok) {
-            toast.error(res.error);
-            return;
-          }
-          toast.success(status === "ACTIVE" ? "Dinonaktifkan" : "Diaktifkan");
+          const res = await withToast(deactivateMemberAction(userId, status !== "ACTIVE"), { success: status === "ACTIVE" ? "Dinonaktifkan" : "Diaktifkan" });
+          if (!res.ok) return;
         })
       }
     >

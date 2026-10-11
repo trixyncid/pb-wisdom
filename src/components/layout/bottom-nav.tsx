@@ -84,14 +84,14 @@ export function BottomNav({ role }: { role: Role | null }) {
     <>
       <nav
         aria-label="Navigasi utama"
-        className="fixed inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-50 flex flex-col items-center px-3 md:hidden"
+        className="fixed inset-x-0 bottom-[max(14px,env(safe-area-inset-bottom))] z-50 flex flex-col items-center px-2 md:hidden"
       >
         {onAdminBar && (
           <p className="mb-1.5 rounded-full bg-navy px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
             Club Admin
           </p>
         )}
-        <ul className="flex items-center gap-1.5 rounded-full border border-white/70 bg-white/65 p-1.5 shadow-[0_18px_44px_rgba(14,44,60,0.18)] backdrop-blur-xl">
+        <ul className="flex max-w-full items-center gap-[clamp(4px,1.6vw,8px)] rounded-full border border-white/70 bg-white/70 p-[clamp(5px,1.6vw,8px)] shadow-[0_20px_48px_rgba(14,44,60,0.2)] backdrop-blur-xl">
           {tabs.map((tab) => {
             const active = isActive(pathname, tab);
             const Icon = tab.icon;
@@ -103,10 +103,11 @@ export function BottomNav({ role }: { role: Role | null }) {
                   aria-label={tab.label}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative flex h-12 items-center rounded-full text-sm font-semibold transition-colors duration-200",
+                    // Sizes scale with the screen: ~48px circles on a 375px phone, 56px max.
+                    "relative flex h-[clamp(48px,13vw,56px)] items-center rounded-full text-[15px] font-bold transition-colors duration-200",
                     active
-                      ? cn("text-white", showLabel ? "gap-2 pl-1.5 pr-4" : "w-12 justify-center")
-                      : "w-12 justify-center bg-white text-navy shadow-[0_2px_8px_rgba(14,44,60,0.06)] hover:bg-cream",
+                      ? cn("text-white", showLabel ? "gap-2 pl-[5px] pr-[clamp(14px,4vw,20px)]" : "w-[clamp(48px,13vw,56px)] justify-center")
+                      : "w-[clamp(48px,13vw,56px)] justify-center bg-white text-navy shadow-[0_2px_10px_rgba(14,44,60,0.08)] hover:bg-cream",
                   )}
                 >
                   {active && (
@@ -119,10 +120,10 @@ export function BottomNav({ role }: { role: Role | null }) {
                   <span
                     className={cn(
                       "relative z-10 flex items-center justify-center rounded-full transition-all duration-300",
-                      active ? "size-9 bg-white text-navy" : "size-5",
+                      active ? "size-[clamp(38px,10.5vw,46px)] bg-white text-navy" : "size-6",
                     )}
                   >
-                    <Icon className="size-[18px]" strokeWidth={active ? 2.4 : 2} />
+                    <Icon className="size-[22px]" strokeWidth={active ? 2.4 : 2} />
                   </span>
                   <AnimatePresence initial={false}>
                     {active && showLabel && (

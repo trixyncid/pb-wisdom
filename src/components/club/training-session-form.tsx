@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { upsertTrainingSessionAction } from "@/actions/jadwal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,19 +22,15 @@ export function TrainingSessionForm() {
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          const res = await upsertTrainingSessionAction({
+          const res = await withToast(upsertTrainingSessionAction({
             title,
             weekday: Number(weekday),
             startTime,
             endTime,
             venue,
             notes: notes || undefined,
-          });
-          if (!res.ok) {
-            toast.error(res.error);
-            return;
-          }
-          toast.success("Jadwal disimpan");
+          }), { success: "Jadwal disimpan" });
+          if (!res.ok) return;
         });
       }}
     >

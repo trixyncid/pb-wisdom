@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { createFeePeriodAction } from "@/actions/iuran";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,17 +22,13 @@ export function CreateFeePeriodForm() {
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          const res = await createFeePeriodAction({
+          const res = await withToast(createFeePeriodAction({
             label,
             amount: Number(amount),
             dueDate,
             paymentInstructions: instructions,
-          });
-          if (!res.ok) {
-            toast.error(res.error);
-            return;
-          }
-          toast.success("Periode iuran dibuka");
+          }), { success: "Periode iuran dibuka" });
+          if (!res.ok) return;
           setDueDate("");
         });
       }}

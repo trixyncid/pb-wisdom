@@ -3,7 +3,6 @@ import { MapPin, Share2, Users } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { appUrl } from "@/lib/app-url";
-import { weekdayLabel } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceButtons } from "@/components/jadwal/attendance-buttons";
@@ -72,7 +71,6 @@ export default async function JadwalPage() {
                     {occ.session.title}
                   </p>
                   <p className="text-sm font-semibold text-accent-ink">
-                    {weekdayLabel(occ.session.weekday)} ·{" "}
                     {formatClub(occ.date, "EEEE, d MMM yyyy", { locale: localeId })}
                   </p>
                   <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">

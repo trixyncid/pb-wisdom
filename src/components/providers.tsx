@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense, useState } from "react";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/toaster";
 import { AuthModal } from "@/components/auth/auth-modal";
 import { LogoutModal } from "@/components/auth/logout-modal";
 
@@ -31,7 +31,7 @@ export function Providers({
         </Suspense>
       )}
       {!demo && <LogoutModal />}
-      <Toaster theme="light" position="top-center" richColors />
+      <Toaster />
     </QueryClientProvider>
   );
 }

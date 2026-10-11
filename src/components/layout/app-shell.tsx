@@ -31,15 +31,20 @@ export async function AppShell({
   return (
     <div className="min-h-dvh md:pl-64">
       <BottomNav role={session?.user?.role ?? null} />
-      {isMember && (
-        <TopBar
-          nick={nick}
-          imageUrl={avatarUrl(session.user.id, profile?.updatedAt)}
-          isAdmin={session?.user?.role === "ADMIN"}
-          unread={unread}
-        />
-      )}
-      <main className="mx-auto max-w-3xl px-4 pb-28 pt-4 md:pb-10 md:pt-6">
+      <TopBar
+        loggedIn={Boolean(session?.user)}
+        member={
+          isMember
+            ? {
+                nick,
+                imageUrl: avatarUrl(session.user.id, profile?.updatedAt),
+                isAdmin: session.user.role === "ADMIN",
+                unread,
+              }
+            : null
+        }
+      />
+      <main className="mx-auto max-w-3xl px-4 pb-36 pt-3 md:pb-10 md:pt-4">
         {children}
       </main>
     </div>

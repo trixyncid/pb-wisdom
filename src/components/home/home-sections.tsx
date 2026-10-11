@@ -131,57 +131,6 @@ export function NextTrainingCard({
   );
 }
 
-export type Tile = {
-  href: string;
-  label: string;
-  hint: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
-  tone?: "plain" | "warm" | "alert";
-};
-
-/** Three shortcut tiles; the middle one is tinted, like the reference. */
-export function TileRow({ tiles, delay = 0 }: { tiles: Tile[]; delay?: number }) {
-  return (
-    <div className="grid grid-cols-3 gap-2.5">
-      {tiles.map((t, i) => {
-        const Icon = t.icon;
-        return (
-          <Link
-            key={t.href}
-            href={t.href}
-            style={rise(delay + i)}
-            className={cn(
-              "rise relative flex flex-col items-center gap-2 rounded-[26px] border px-2 pb-3.5 pt-4 text-center transition duration-200 hover:-translate-y-0.5",
-              i === 1
-                ? "border-accent/20 bg-accent-soft"
-                : "border-white bg-white/90 shadow-[0_10px_28px_rgba(14,44,60,0.06)]",
-            )}
-          >
-            <span
-              className={cn(
-                "flex size-12 items-center justify-center rounded-full",
-                t.tone === "alert" ? "bg-rose-100 text-rose-600" : i === 1 ? "bg-white text-accent-ink" : "bg-sand text-navy",
-              )}
-            >
-              <Icon className="size-5" />
-            </span>
-            <span className="text-sm font-bold leading-tight text-navy">{t.label}</span>
-            <span className={cn("text-[11px] leading-tight", t.tone === "alert" ? "font-semibold text-rose-600" : "text-slate-500")}>
-              {t.hint}
-            </span>
-            {t.badge ? (
-              <span className="absolute right-2.5 top-2.5 flex min-w-5 items-center justify-center rounded-full bg-navy px-1 text-[10px] font-bold leading-5 text-white">
-                {t.badge}
-              </span>
-            ) : null}
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
 export function SectionHeader({
   title,
   href,
@@ -310,6 +259,151 @@ export function LeaderboardList({
           </span>
         </Link>
       ))}
+    </div>
+  );
+}
+
+/** Public home: the leaderboard as the star of the page (dark, with trophy). */
+export function LeaderboardSpotlight({ rows, delay = 0 }: { rows: LeaderboardRow[]; delay?: number }) {
+  const [first, second, third] = rows;
+  const rest = rows.slice(3, 8);
+  return (
+    <section
+      className="rise relative overflow-hidden rounded-[34px] bg-navy px-4 pb-5 pt-6 text-white shadow-[0_26px_56px_rgba(14,44,60,0.35)]"
+      style={rise(delay)}
+    >
+      <div aria-hidden className="absolute -right-16 -top-20 size-64 rounded-full bg-accent/30 blur-3xl" />
+      <div aria-hidden className="absolute -bottom-24 -left-16 size-56 rounded-full bg-accent/10 blur-3xl" />
+      <div className="relative flex items-start justify-between gap-3 px-1">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Leaderboard</p>
+          <h2 className="font-display mt-1 text-[1.75rem] font-extrabold leading-tight">Juara minggu ini</h2>
+          <p className="mt-1 text-sm text-white/60">Winrate dari match yang dikonfirmasi</p>
+        </div>
+        <Image
+          src={trophy3d}
+          alt=""
+          width={96}
+          height={172}
+          preload
+          className="float-tilt pointer-events-none -mt-3 w-[74px] shrink-0 drop-shadow-[0_18px_24px_rgba(0,0,0,0.35)]"
+        />
+      </div>
+
+      {first ? (
+        <>
+          <div className="relative mt-5 grid grid-cols-3 items-end gap-2.5">
+            {[second, first, third].map((row, idx) => {
+              if (!row) return <div key={idx} />;
+              const top = idx === 1;
+              const rank = top ? 1 : idx === 0 ? 2 : 3;
+              return (
+                <div
+                  key={row.userId}
+                  className={cn(
+                    "relative flex flex-col items-center rounded-[26px] px-2 text-center",
+                    top ? "bg-accent pb-5 pt-6 text-navy shadow-[0_18px_36px_rgba(238,159,72,0.4)]" : "bg-white/[0.08] pb-4 pt-5",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "font-display absolute -top-3.5 flex size-7 items-center justify-center rounded-full text-sm font-extrabold ring-4 ring-navy",
+                      top ? "bg-white text-navy" : "bg-white/15 text-white",
+                    )}
+                  >
+                    {rank}
+                  </span>
+                  <Avatar className={cn(top ? "size-16 ring-4 ring-white" : "size-12 ring-2 ring-white/30")}>
+                    <AvatarImage src={row.imageUrl ?? undefined} alt="" />
+                    <AvatarFallback className="text-navy">{row.nickname.slice(0, 2)}</AvatarFallback>
+                  </Avatar>
+                  <p className="mt-2 w-full truncate text-sm font-bold">{row.nickname}</p>
+                  <p className={cn("font-display font-extrabold", top ? "text-2xl" : "text-lg text-accent")}>{row.winrate}%</p>
+                  <p className={cn("text-[11px]", top ? "text-navy/70" : "text-white/50")}>
+                    {row.wins}W · {row.losses}L
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {rest.length > 0 && (
+            <ol className="relative mt-4 flex flex-col gap-1.5">
+              {rest.map((row, i) => (
+                <li key={row.userId} className="flex items-center gap-3 rounded-[20px] bg-white/[0.06] p-2 pr-3">
+                  <span className="font-display w-6 text-center text-sm font-extrabold text-white/40">{i + 4}</span>
+                  <Avatar className="size-9">
+                    <AvatarImage src={row.imageUrl ?? undefined} alt="" />
+                    <AvatarFallback className="text-navy">{row.nickname.slice(0, 2)}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{row.nickname}</span>
+                  <span className="text-xs text-white/50">
+                    {row.wins}W · {row.losses}L
+                  </span>
+                  <span className="font-display w-14 text-right text-base font-extrabold text-accent">{row.winrate}%</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </>
+      ) : (
+        <p className="relative mt-5 text-sm text-white/70">Belum ada ranking. Match pertama menunggu!</p>
+      )}
+
+      <Link
+        href="/play"
+        className="relative mt-5 flex h-12 items-center justify-center gap-2 rounded-full bg-white text-sm font-bold text-navy transition hover:bg-cream"
+      >
+        Gabung &amp; masuk ranking <ArrowUpRight className="size-4" />
+      </Link>
+    </section>
+  );
+}
+
+export type AttentionItem = {
+  href: string;
+  title: string;
+  hint: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone: "alert" | "warm" | "navy";
+};
+
+/** Only what needs action now; renders nothing when all is clear. */
+export function AttentionList({ items, delay = 0 }: { items: AttentionItem[]; delay?: number }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {items.map((item, i) => {
+        const Icon = item.icon;
+        const navy = item.tone === "navy";
+        return (
+          <Link
+            key={item.href + item.title}
+            href={item.href}
+            style={rise(delay + i)}
+            className={cn(
+              "rise flex items-center gap-3 rounded-full p-1.5 pr-4 transition hover:-translate-y-0.5",
+              navy ? "bg-navy text-white shadow-[0_12px_28px_rgba(14,44,60,0.25)]" : "border border-white bg-white/90 text-navy shadow-[0_8px_24px_rgba(14,44,60,0.06)]",
+            )}
+          >
+            <span
+              className={cn(
+                "flex size-11 shrink-0 items-center justify-center rounded-full",
+                item.tone === "alert" && "bg-rose-100 text-rose-600",
+                item.tone === "warm" && "bg-accent-soft text-accent-ink",
+                navy && "bg-accent text-navy",
+              )}
+            >
+              <Icon className="size-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-bold">{item.title}</span>
+              <span className={cn("block truncate text-xs", navy ? "text-white/60" : "text-slate-500")}>{item.hint}</span>
+            </span>
+            <ArrowUpRight className={cn("size-4 shrink-0", navy ? "text-white/60" : "text-navy/40")} />
+          </Link>
+        );
+      })}
     </div>
   );
 }

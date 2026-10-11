@@ -56,6 +56,7 @@ export default async function HomePage() {
   if (isMember) {
     return (
       <MemberHome
+        firstName={(session?.user?.name ?? "Member").split(" ")[0]}
         isAdmin={isAdmin}
         announcementTitle={announcement?.title ?? null}
         fee={feeDue ? { label: feeDue.period.label, status: feeDue.status } : null}

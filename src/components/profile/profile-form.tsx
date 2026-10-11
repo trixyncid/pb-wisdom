@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { updateProfileAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,16 +30,12 @@ export function ProfileForm({
   function savePhoto(dataUrl: string) {
     setImageUrl(dataUrl);
     startPhoto(async () => {
-      const res = await updateProfileAction({
+      const res = await withToast(updateProfileAction({
         nickname,
         phone: phone === "+62" || phone.length <= 3 ? "" : phone,
         imageUrl: dataUrl,
-      });
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success("Foto profil diperbarui");
+      }), { success: "Foto profil diperbarui" });
+      if (!res.ok) return;
     });
   }
 
@@ -78,15 +74,11 @@ export function ProfileForm({
         onSubmit={(e) => {
           e.preventDefault();
           start(async () => {
-            const res = await updateProfileAction({
+            const res = await withToast(updateProfileAction({
               nickname,
               phone: phone === "+62" || phone.length <= 3 ? "" : phone,
-            });
-            if (!res.ok) {
-              toast.error(res.error);
-              return;
-            }
-            toast.success("Profil disimpan");
+            }), { success: "Profil disimpan" });
+            if (!res.ok) return;
           });
         }}
       >

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { setAttendanceAction } from "@/actions/jadwal";
 import { Button } from "@/components/ui/button";
 import type { AttendanceStatus } from "@prisma/client";
@@ -17,12 +17,8 @@ export function AttendanceButtons({
 
   function set(status: AttendanceStatus) {
     start(async () => {
-      const res = await setAttendanceAction(occurrenceId, status);
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success("RSVP tersimpan");
+      const res = await withToast(setAttendanceAction(occurrenceId, status), { success: "RSVP tersimpan" });
+      if (!res.ok) return;
     });
   }
 

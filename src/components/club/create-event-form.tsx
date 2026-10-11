@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { createEventAction } from "@/actions/events";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ export function CreateEventForm() {
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          const res = await createEventAction({
+          const res = await withToast(createEventAction({
             title,
             type,
             startsAt,
@@ -32,12 +32,8 @@ export function CreateEventForm() {
             capacity: capacity ? Number(capacity) : undefined,
             extraFee: extraFee ? Number(extraFee) : undefined,
             notes: notes || undefined,
-          });
-          if (!res.ok) {
-            toast.error(res.error);
-            return;
-          }
-          toast.success("Event dibuat");
+          }), { success: "Event dibuat" });
+          if (!res.ok) return;
           setTitle("");
         });
       }}

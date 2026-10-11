@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { createAnnouncementAction } from "@/actions/ops";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,14 +17,13 @@ export function AnnouncementForm() {
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          const res = await createAnnouncementAction(title, body);
-          if (!res.ok) {
-            toast.error(res.error);
-            return;
-          }
+          const res = await withToast(createAnnouncementAction(title, body), {
+            loading: "Mengirim pengumuman…",
+            success: "Pengumuman dikirim",
+          });
+          if (!res.ok) return;
           setTitle("");
           setBody("");
-          toast.success("Pengumuman dikirim");
         });
       }}
     >

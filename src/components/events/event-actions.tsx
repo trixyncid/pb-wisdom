@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { Share2 } from "lucide-react";
 import { setEventRsvpAction } from "@/actions/events";
 import { Button } from "@/components/ui/button";
@@ -20,14 +20,8 @@ export function EventActions({
 
   function set(status: RsvpStatus) {
     start(async () => {
-      const res = await setEventRsvpAction(eventId, status);
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success(
-        res.status === "WAITLIST" ? "Masuk waitlist" : "RSVP tersimpan",
-      );
+      const res = await withToast(setEventRsvpAction(eventId, status), { success: (res) => res.status === "WAITLIST" ? "Masuk waitlist" : "RSVP tersimpan", });
+      if (!res.ok) return;
     });
   }
 

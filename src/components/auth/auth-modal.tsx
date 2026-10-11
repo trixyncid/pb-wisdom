@@ -38,16 +38,17 @@ export function AuthModal() {
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     start(async () => {
+      const id = toast.loading("Masuk…");
       const res = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
       if (res?.error) {
-        toast.error("Email atau password salah");
+        toast.error("Email atau password salah", { id });
         return;
       }
-      toast.success("Welcome to PB Wisdom!");
+      toast.success("Selamat datang di PB Wisdom!", { id });
       const next = safeRedirectPath(authNext || params.get("next"));
       closeAuth();
       router.push(next);

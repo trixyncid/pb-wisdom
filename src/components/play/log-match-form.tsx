@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { logMatchAction } from "@/actions/matches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,18 +58,14 @@ export function LogMatchForm({
     start(async () => {
       const team1Ids = type === "SINGLES" ? [t1a] : [t1a, t1b].filter(Boolean);
       const team2Ids = type === "SINGLES" ? [t2a] : [t2a, t2b].filter(Boolean);
-      const res = await logMatchAction({
+      const res = await withToast(logMatchAction({
         type,
         score,
         team1Ids,
         team2Ids,
         winnerTeam: winner,
-      });
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success("Match dicatat");
+      }), { success: "Match dicatat" });
+      if (!res.ok) return;
       setScore("");
     });
   }

@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setDemoRoleAction } from "@/actions/demo";
+import { toast } from "sonner";
 
 export function DemoBanner({ role }: { role: "MEMBER" | "ADMIN" }) {
   const router = useRouter();
@@ -11,6 +12,7 @@ export function DemoBanner({ role }: { role: "MEMBER" | "ADMIN" }) {
   function switchRole(next: "MEMBER" | "ADMIN") {
     start(async () => {
       await setDemoRoleAction(next);
+      toast.success(next === "ADMIN" ? "Mode demo: Admin" : "Mode demo: Member");
       router.refresh();
     });
   }

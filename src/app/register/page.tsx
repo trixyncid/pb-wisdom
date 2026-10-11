@@ -24,6 +24,7 @@ function RegisterForm() {
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
+      const id = toast.loading("Membuat akun…");
       const res = await registerAction({
         name,
         email,
@@ -31,20 +32,21 @@ function RegisterForm() {
         inviteCode: inviteCode || undefined,
       });
       if (!res.ok) {
-        toast.error(res.error);
+        toast.error(res.error, { id });
         return;
       }
+      toast.loading("Akun dibuat, masuk…", { id });
       const login = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
       if (login?.error) {
-        toast.error("Akun dibuat, silakan login manual");
+        toast.error("Akun dibuat, silakan login manual", { id });
         router.push("/login");
         return;
       }
-      toast.success("Akun dibuat");
+      toast.success("Akun dibuat, selamat datang!", { id });
       router.push("/");
       router.refresh();
     });

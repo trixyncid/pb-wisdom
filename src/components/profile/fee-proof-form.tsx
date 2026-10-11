@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { submitFeeProofAction } from "@/actions/iuran";
 import { Button } from "@/components/ui/button";
 import { shrinkImageFile } from "@/lib/shrink-image";
@@ -53,12 +54,8 @@ export function FeeProofForm({ dueId }: { dueId: string }) {
         onClick={() =>
           start(async () => {
             if (!image) return;
-            const res = await submitFeeProofAction(dueId, image);
-            if (!res.ok) {
-              toast.error(res.error);
-              return;
-            }
-            toast.success("Bukti dikirim");
+            const res = await withToast(submitFeeProofAction(dueId, image), { success: "Bukti dikirim" });
+            if (!res.ok) return;
             setImage(null);
           })
         }

@@ -1,38 +1,28 @@
-import Link from "next/link";
-import {
-  CalendarDays,
-  ChevronRight,
-  Megaphone,
-  Receipt,
-  Shield,
-  Swords,
-  Trophy,
-  UserRound,
-  Users,
-} from "lucide-react";
+import { Megaphone, Receipt, Shield, Swords } from "lucide-react";
 import type { FeeStatus } from "@prisma/client";
 import type { LeaderboardRow } from "@/lib/stats";
 import {
-  Headline,
+  AttentionList,
   LeaderboardList,
   NextTrainingCard,
   Podium,
   SectionHeader,
-  TileRow,
+  type AttentionItem,
   type NextTraining,
-  type Tile,
 } from "@/components/home/home-sections";
 
-const feeHint: Record<FeeStatus, string> = {
-  UNPAID: "Belum bayar",
-  SUBMITTED: "Menunggu cek",
-  REJECTED: "Bukti ditolak",
-  VERIFIED: "Lunas",
+const feeHint: Record<Exclude<FeeStatus, "VERIFIED">, string> = {
+  UNPAID: "Belum dibayar, upload bukti transfer",
+  SUBMITTED: "Bukti sedang dicek admin",
+  REJECTED: "Bukti ditolak, upload ulang",
 };
 
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
+// Kept deliberately short: greeting, next training, only what needs action,
+// and a leaderboard preview. Everything else is one tap away in the nav.
 export function MemberHome({
+  firstName,
   isAdmin,
   announcementTitle,
   fee,
@@ -45,6 +35,7 @@ export function MemberHome({
   rows,
   userId,
 }: {
+  firstName: string;
   isAdmin: boolean;
   announcementTitle: string | null;
   fee: { label: string; status: FeeStatus } | null;
@@ -57,98 +48,59 @@ export function MemberHome({
   rows: LeaderboardRow[];
   userId?: string;
 }) {
-  const tiles: Tile[] = [
-    {
+  const attention: AttentionItem[] = [];
+  if (pendingMatchCount > 0) {
+    attention.push({
       href: "/play",
-      label: "Match",
-      hint: pendingMatchCount > 0 ? "Perlu konfirmasi" : "Catat skor",
+      title: `${pendingMatchCount} match perlu dikonfirmasi`,
+      hint: "Cek skor yang dicatat lawanmu",
       icon: Swords,
-      badge: pendingMatchCount || undefined,
-      tone: pendingMatchCount > 0 ? "alert" : "plain",
-    },
-    {
+      tone: "alert",
+    });
+  }
+  if (fee && fee.status !== "VERIFIED") {
+    attention.push({
       href: "/profile/iuran",
-      label: "Iuran",
-      hint: fee ? `${fee.label} · ${feeHint[fee.status]}` : "Tidak ada tagihan",
+      title: `Iuran ${fee.label}`,
+      hint: feeHint[fee.status],
       icon: Receipt,
-      tone: fee && (fee.status === "UNPAID" || fee.status === "REJECTED") ? "alert" : "warm",
-    },
-    { href: "/events", label: "Events", hint: "Sparring & album", icon: Trophy },
-  ];
-
-  const adminBits: string[] = [];
-  if (isAdmin && pendingMembers > 0) adminBits.push(`${pendingMembers} member baru`);
-  if (isAdmin && pendingFees > 0) adminBits.push(`${pendingFees} bukti iuran`);
+      tone: fee.status === "SUBMITTED" ? "warm" : "alert",
+    });
+  }
+  if (announcementTitle) {
+    attention.push({ href: "/notifications", title: announcementTitle, hint: "Pengumuman klub", icon: Megaphone, tone: "warm" });
+  }
+  if (isAdmin && (pendingMembers > 0 || pendingFees > 0)) {
+    const bits: string[] = [];
+    if (pendingMembers > 0) bits.push(`${pendingMembers} member baru`);
+    if (pendingFees > 0) bits.push(`${pendingFees} bukti iuran`);
+    attention.push({ href: "/club", title: "Perlu ditinjau admin", hint: bits.join(" · "), icon: Shield, tone: "navy" });
+  }
 
   return (
-    <div className="flex flex-col gap-6 pt-2">
-      <Headline lead="Siap" highlight="smash" tail="hari ini?" delay={0} />
-
-      <div className="rise flex items-center gap-2" style={rise(1)}>
-        <Link
-          href="/play"
-          className="flex h-12 flex-1 items-center justify-center rounded-full border-2 border-accent bg-white/80 px-4 text-sm font-bold text-navy transition hover:bg-accent-soft"
-        >
-          Catat match
-        </Link>
-        {[
-          { href: "/jadwal", label: "Jadwal", icon: CalendarDays },
-          { href: "/directory", label: "Member", icon: Users },
-          { href: "/profile", label: "Profil", icon: UserRound },
-        ].map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            aria-label={label}
-            className="flex size-12 shrink-0 items-center justify-center rounded-full border border-white bg-white/90 text-navy shadow-[0_6px_18px_rgba(14,44,60,0.07)] transition hover:-translate-y-0.5 hover:bg-white"
-          >
-            <Icon className="size-5" />
-          </Link>
-        ))}
+    <div className="flex flex-col gap-7 pt-2">
+      <div className="rise" style={rise(0)}>
+        <p className="text-base font-medium text-navy/55">Halo, {firstName}</p>
+        <h1 className="font-display mt-0.5 text-[2.1rem] font-extrabold leading-[1.05] text-navy">
+          Siap{" "}
+          <span className="relative inline-block">
+            <span className="relative z-10">smash</span>
+            <span aria-hidden className="absolute inset-x-[-4px] bottom-1 z-0 h-3 rounded-full bg-accent/60" />
+          </span>{" "}
+          <span className="text-navy/40">hari ini?</span>
+        </h1>
       </div>
 
-      <NextTrainingCard occurrence={occurrence} goingCount={goingCount} iAmGoing={iAmGoing} delay={2} />
+      <NextTrainingCard occurrence={occurrence} goingCount={goingCount} iAmGoing={iAmGoing} delay={1} />
 
-      {(announcementTitle || adminBits.length > 0) && (
-        <div className="flex flex-col gap-2">
-          {announcementTitle && (
-            <div
-              className="rise flex items-center gap-3 rounded-[24px] border border-white bg-white/90 p-3 shadow-[0_8px_24px_rgba(14,44,60,0.05)]"
-              style={rise(3)}
-            >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
-                <Megaphone className="size-[18px]" />
-              </span>
-              <p className="min-w-0 text-sm text-navy">
-                <span className="block text-[11px] font-bold uppercase tracking-[0.14em] text-accent-ink">Pengumuman</span>
-                <span className="line-clamp-2 font-medium">{announcementTitle}</span>
-              </p>
-            </div>
-          )}
-          {adminBits.length > 0 && (
-            <Link
-              href="/club"
-              className="rise flex items-center gap-3 rounded-full bg-navy p-1.5 pr-4 text-white shadow-[0_12px_28px_rgba(14,44,60,0.25)]"
-              style={rise(3)}
-            >
-              <span className="flex size-9 items-center justify-center rounded-full bg-accent text-navy">
-                <Shield className="size-4" />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{adminBits.join(" · ")}</span>
-              <ChevronRight className="size-4 text-white/60" />
-            </Link>
-          )}
-        </div>
-      )}
-
-      <TileRow tiles={tiles} delay={4} />
+      <AttentionList items={attention} delay={2} />
 
       <section>
-        <SectionHeader title="Leaderboard" href="/play" delay={7} />
+        <SectionHeader title="Leaderboard" href="/play" delay={5} />
         {rows.length > 0 ? (
           <div className="flex flex-col gap-3">
-            <Podium rows={rows.slice(0, 3)} delay={8} />
-            <LeaderboardList rows={rows.slice(3)} startRank={4} userId={userId} delay={9} />
+            <Podium rows={rows.slice(0, 3)} delay={6} />
+            <LeaderboardList rows={rows.slice(3, 6)} startRank={4} userId={userId} delay={7} />
           </div>
         ) : (
           <p className="px-1 text-sm text-slate-500">Belum ada ranking. Catat match pertamamu!</p>

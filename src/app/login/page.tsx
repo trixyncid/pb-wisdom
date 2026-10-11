@@ -21,16 +21,17 @@ export default function LoginPage() {
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
+      const id = toast.loading("Masuk…");
       const res = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
       if (res?.error) {
-        toast.error("Invalid email or password");
+        toast.error("Email atau password salah", { id });
         return;
       }
-      toast.success("Welcome back!");
+      toast.success("Selamat datang kembali!", { id });
       router.push("/");
       router.refresh();
     });

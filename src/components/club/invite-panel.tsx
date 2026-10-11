@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
+import { withToast } from "@/lib/with-toast";
 import { regenerateInviteAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 
@@ -36,12 +37,8 @@ export function InvitePanel({ code }: { code: string | null }) {
           disabled={pending}
           onClick={() =>
             start(async () => {
-              const res = await regenerateInviteAction();
-              if (!res.ok) {
-                toast.error(res.error);
-                return;
-              }
-              toast.success(`Kode baru: ${res.code}`);
+              const res = await withToast(regenerateInviteAction(), { success: (res) => `Kode baru: ${res.code}` });
+              if (!res.ok) return;
             })
           }
         >
