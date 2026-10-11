@@ -1,17 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireAdmin, requireMember } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import type { EventType, RsvpStatus } from "@prisma/client";
 import { demoActionResult } from "@/lib/demo/guard";
 import { isDemoMode } from "@/lib/demo/mode";
-
-async function requireAdmin() {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") throw new Error("Forbidden");
-  return session;
-}
 
 export async function createEventAction(input: {
   title: string;
@@ -64,8 +58,7 @@ export async function setEventRsvpAction(eventId: string, status: RsvpStatus) {
   if (isDemoMode()) {
     return { ok: true as const, status };
   }
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  const session = await requireMember();
 
   const event = await prisma.event.findUnique({
     where: { id: eventId },
@@ -106,8 +99,7 @@ export async function addEventPhotoAction(
 ) {
   const __demo = demoActionResult();
   if (__demo) return __demo;
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  const session = await requireMember();
 
   await prisma.eventPhoto.create({
     data: {
@@ -127,8 +119,7 @@ export async function addEventPhotoAction(
 export async function deleteEventPhotoAction(photoId: string) {
   const __demo = demoActionResult();
   if (__demo) return __demo;
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  const session = await requireMember();
 
   const photo = await prisma.eventPhoto.findUnique({ where: { id: photoId } });
   if (!photo) throw new Error("Not found");

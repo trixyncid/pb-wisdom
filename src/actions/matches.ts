@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireMember } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import type { MatchType } from "@prisma/client";
 import { demoActionResult } from "@/lib/demo/guard";
@@ -17,8 +17,7 @@ export async function logMatchAction(input: {
 }) {
   const __demo = demoActionResult();
   if (__demo) return __demo;
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  const session = await requireMember();
 
   const allIds = [...input.team1Ids, ...input.team2Ids];
   if (new Set(allIds).size !== allIds.length) {
@@ -29,6 +28,15 @@ export async function logMatchAction(input: {
   }
   if (input.type === "DOUBLES" && (input.team1Ids.length !== 2 || input.team2Ids.length !== 2)) {
     throw new Error("Doubles needs 2v2");
+  }
+  if (session.user.role !== "ADMIN" && !allIds.includes(session.user.id)) {
+    throw new Error("You can only log matches you played in");
+  }
+  const approvedPlayers = await prisma.user.count({
+    where: { id: { in: allIds }, role: { in: ["MEMBER", "ADMIN"] } },
+  });
+  if (approvedPlayers !== allIds.length) {
+    throw new Error("All players must be approved members");
   }
 
   const match = await prisma.match.create({
@@ -93,8 +101,7 @@ export async function logMatchAction(input: {
 export async function confirmMatchAction(matchId: string, accept: boolean) {
   const __demo = demoActionResult();
   if (__demo) return __demo;
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  const session = await requireMember();
 
   const player = await prisma.matchPlayer.findUnique({
     where: {

@@ -1,15 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireAdmin, requireMember } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
-
-async function requireAdmin() {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") throw new Error("Forbidden");
-  return session;
-}
 
 export async function createFeePeriodAction(input: {
   label: string;
@@ -65,8 +59,7 @@ export async function createFeePeriodAction(input: {
 export async function submitFeeProofAction(dueId: string, proofUrl: string) {
   const __demo = demoActionResult();
   if (__demo) return __demo;
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  const session = await requireMember();
 
   const due = await prisma.feeDue.findUnique({ where: { id: dueId } });
   if (!due || due.userId !== session.user.id) throw new Error("Not found");

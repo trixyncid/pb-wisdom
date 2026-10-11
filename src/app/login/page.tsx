@@ -12,8 +12,8 @@ import { Card } from "@/components/ui/card";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@pbwisdom.local");
-  const [password, setPassword] = useState("WisdomAdmin1!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [pending, startTransition] = useTransition();
 
   function onSubmit(e: React.FormEvent) {
@@ -81,11 +81,13 @@ export default function LoginPage() {
           </Link>
         </p>
 
-        <div className="rounded-2xl bg-[#e8f3fb] p-3 text-[11px] leading-relaxed text-slate-500">
-          <p className="mb-1 font-bold text-[#0b2a4a]">Local seed logins</p>
-          <p>admin@pbwisdom.local / WisdomAdmin1!</p>
-          <p>member@pbwisdom.local / WisdomMember1!</p>
-        </div>
+        {process.env.NODE_ENV === "development" && (
+          <div className="rounded-2xl bg-[#e8f3fb] p-3 text-[11px] leading-relaxed text-slate-500">
+            <p className="mb-1 font-bold text-[#0b2a4a]">Local seed logins</p>
+            <p>admin@pbwisdom.local / WisdomAdmin1!</p>
+            <p>member@pbwisdom.local / WisdomMember1!</p>
+          </div>
+        )}
       </Card>
     </main>
   );

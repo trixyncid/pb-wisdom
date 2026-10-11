@@ -1,3 +1,4 @@
+import { requireAdminPage } from "@/lib/authz";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { AppShell } from "@/components/layout/app-shell";
@@ -6,6 +7,7 @@ import { InvitePanel } from "@/components/club/invite-panel";
 import { AnnouncementForm } from "@/components/club/announcement-form";
 
 export default async function ClubPage() {
+  await requireAdminPage();
   const [pendingMembers, pendingFees, invite] = await Promise.all([
     prisma.user.count({ where: { role: "PENDING" } }),
     prisma.feeDue.count({ where: { status: "SUBMITTED" } }),

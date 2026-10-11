@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import { useUiStore } from "@/lib/store";
+import { safeRedirectPath } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +16,8 @@ export function AuthModal() {
   const router = useRouter();
   const params = useSearchParams();
   const { authOpen, authNext, openAuth, closeAuth } = useUiStore();
-  const [email, setEmail] = useState("member@pbwisdom.local");
-  const [password, setPassword] = useState("WisdomMember1!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [pending, start] = useTransition();
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export function AuthModal() {
         return;
       }
       toast.success("Welcome to PB Wisdom!");
-      const next = authNext || params.get("next") || "/";
+      const next = safeRedirectPath(authNext || params.get("next"));
       closeAuth();
       router.push(next);
       router.refresh();

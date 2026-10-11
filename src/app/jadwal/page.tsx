@@ -8,12 +8,12 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceButtons } from "@/components/jadwal/attendance-buttons";
-import { ensureUpcomingOccurrencesAction } from "@/actions/jadwal";
+import { ensureUpcomingOccurrences } from "@/lib/jobs";
 import { JadwalRsvpGate } from "@/components/jadwal/rsvp-gate";
 
 export default async function JadwalPage() {
   const session = await auth();
-  await ensureUpcomingOccurrencesAction();
+  await ensureUpcomingOccurrences();
 
   const occurrences = await prisma.trainingOccurrence.findMany({
     where: {

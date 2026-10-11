@@ -1,3 +1,4 @@
+import { requireAdminPage } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { weekdayLabel } from "@/lib/utils";
 import { AppShell } from "@/components/layout/app-shell";
@@ -5,6 +6,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { TrainingSessionForm } from "@/components/club/training-session-form";
 
 export default async function ClubJadwalPage() {
+  await requireAdminPage();
   const sessions = await prisma.trainingSession.findMany({
     orderBy: { weekday: "asc" },
   });

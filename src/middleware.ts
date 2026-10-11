@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { DEMO_ROLE_COOKIE } from "@/lib/demo/mode";
+import { DEMO_ROLE_COOKIE, isDemoMode } from "@/lib/demo/mode";
 
 const alwaysPublic = [
   "/login",
@@ -11,13 +11,6 @@ const alwaysPublic = [
 ];
 
 const softPublic = ["/", "/jadwal"];
-
-function isDemoMode() {
-  return (
-    process.env.DEMO_MODE === "1" ||
-    process.env.NEXT_PUBLIC_DEMO_MODE === "1"
-  );
-}
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

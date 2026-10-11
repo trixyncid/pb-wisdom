@@ -5,6 +5,17 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Returns `next` only if it is a path on this site, otherwise "/". Blocks
+ * open redirects such as `?next=https://evil.example` or `//evil.example`.
+ */
+export function safeRedirectPath(next: string | null | undefined) {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) {
+    return "/";
+  }
+  return next;
+}
+
 export function formatRp(amount: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",

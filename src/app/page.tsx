@@ -18,7 +18,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ensureUpcomingOccurrencesAction } from "@/actions/jadwal";
+import { ensureUpcomingOccurrences } from "@/lib/jobs";
 import { HomeGuestCta } from "@/components/home/home-guest-cta";
 import { QuickActions } from "@/components/home/quick-actions";
 import { FloatingShuttle } from "@/components/home/floating-shuttle";
@@ -26,7 +26,7 @@ import { MemberHome } from "@/components/home/member-home";
 
 export default async function HomePage() {
   const session = await auth();
-  await ensureUpcomingOccurrencesAction();
+  await ensureUpcomingOccurrences();
 
   const userId = session?.user?.id;
   const isAdmin = session?.user?.role === "ADMIN";

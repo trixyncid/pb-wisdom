@@ -1,23 +1,29 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { hash } from "bcryptjs";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { requireAdmin, requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
 import { isDemoMode } from "@/lib/demo/mode";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
-  inviteCode: z.string().optional(),
+  name: z.string().trim().min(2).max(80),
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(200),
+  inviteCode: z.string().max(40).optional(),
 });
 
 export async function registerAction(input: z.infer<typeof registerSchema>) {
   const __demo = demoActionResult();
   if (__demo) return __demo;
+  if (!rateLimit(`register:ip:${clientIp(await headers())}`, 5, 60 * 60 * 1000)) {
+    return { ok: false as const, error: "Too many attempts, try again later" };
+  }
   const data = registerSchema.parse(input);
   const email = data.email.toLowerCase();
 
@@ -71,8 +77,7 @@ export async function updateProfileAction(input: {
 }) {
   const __demo = demoActionResult();
   if (__demo) return __demo;
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  const session = await requireUser();
 
   await prisma.memberProfile.upsert({
     where: { userId: session.user.id },
@@ -117,8 +122,7 @@ export async function updateProfileAction(input: {
 export async function approveMemberAction(userId: string, approve: boolean) {
   const __demo = demoActionResult();
   if (__demo) return __demo;
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") throw new Error("Forbidden");
+  await requireAdmin();
 
   await prisma.user.update({
     where: { id: userId },
@@ -145,8 +149,7 @@ export async function approveMemberAction(userId: string, approve: boolean) {
 export async function deactivateMemberAction(userId: string, active: boolean) {
   const __demo = demoActionResult();
   if (__demo) return __demo;
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") throw new Error("Forbidden");
+  await requireAdmin();
 
   await prisma.memberProfile.update({
     where: { userId },
@@ -161,10 +164,9 @@ export async function regenerateInviteAction() {
   if (isDemoMode()) {
     return { ok: true as const, code: "WISDOM2026" };
   }
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") throw new Error("Forbidden");
+  const session = await requireAdmin();
 
-  const code = `WISDOM${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  const code = `WISDOM${randomBytes(4).toString("hex").toUpperCase()}`;
   const invite = await prisma.invite.create({
     data: {
       code,

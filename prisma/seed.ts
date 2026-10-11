@@ -7,6 +7,13 @@ const avatar = (seed: string) =>
   `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}`;
 
 async function main() {
+  // The seed wipes every table and creates accounts with well-known passwords.
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "1") {
+    throw new Error(
+      "Refusing to seed with NODE_ENV=production: it deletes all data. Set ALLOW_PRODUCTION_SEED=1 only for a throwaway database.",
+    );
+  }
+
   console.log("Seeding PB Wisdom club…");
 
   await prisma.notification.deleteMany();

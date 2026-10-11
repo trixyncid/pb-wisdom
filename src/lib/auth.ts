@@ -8,6 +8,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { isDemoMode, DEMO_ROLE_COOKIE, type DemoRole } from "@/lib/demo/mode";
 import { getDemoUserByRole } from "@/lib/demo/data";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { Role } from "@prisma/client";
 import type { Provider } from "next-auth/providers";
 import type { Session } from "next-auth";
@@ -38,10 +39,17 @@ declare module "next-auth/jwt" {
   }
 }
 
+// Login only checks shape; the length policy applies when a password is set.
 const credentialsSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(1).max(200),
 });
+
+// Compared against when the email is unknown, so a missing account takes as
+// long to reject as a wrong password and does not reveal which emails exist.
+const DUMMY_HASH = "$2b$10$6ff7I5Bl/1LzviXBafTYiOprNP9fDf.UdLXhOnPX3K8ntReqgw5Pq";
+
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 const providers: Provider[] = [
   Credentials({
@@ -50,7 +58,7 @@ const providers: Provider[] = [
       email: { label: "Email", type: "email" },
       password: { label: "Password", type: "password" },
     },
-    async authorize(credentials) {
+    async authorize(credentials, request) {
       if (isDemoMode()) {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
@@ -78,14 +86,24 @@ const providers: Provider[] = [
 
       const parsed = credentialsSchema.safeParse(credentials);
       if (!parsed.success) return null;
+      const email = parsed.data.email.toLowerCase();
 
-      const user = await prisma.user.findUnique({
-        where: { email: parsed.data.email.toLowerCase() },
-      });
-      if (!user?.passwordHash) return null;
+      // Per-account and per-IP limits against password guessing.
+      const ip = clientIp(request.headers);
+      if (
+        !rateLimit(`login:email:${email}`, 10, LOGIN_WINDOW_MS) ||
+        !rateLimit(`login:ip:${ip}`, 30, LOGIN_WINDOW_MS)
+      ) {
+        return null;
+      }
 
-      const valid = await compare(parsed.data.password, user.passwordHash);
-      if (!valid) return null;
+      const user = await prisma.user.findUnique({ where: { email } });
+      const valid = await compare(
+        parsed.data.password,
+        user?.passwordHash ?? DUMMY_HASH,
+      );
+      if (!user?.passwordHash || !valid) return null;
+      if (user.role === "REJECTED") return null;
 
       return {
         id: user.id,
@@ -108,7 +126,6 @@ if (
     Google({
       clientId: process.env.AUTH_GOOGLE_CLIENT_ID,
       clientSecret: process.env.AUTH_GOOGLE_CLIENT_SECRET,
-      allowDangerousEmailAccountLinking: true,
     }),
   );
 }

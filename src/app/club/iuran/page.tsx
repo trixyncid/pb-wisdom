@@ -1,3 +1,4 @@
+import { requireAdminPage } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatRp } from "@/lib/utils";
 import { AppShell } from "@/components/layout/app-shell";
@@ -7,6 +8,7 @@ import { CreateFeePeriodForm } from "@/components/club/create-fee-period-form";
 import { VerifyFeeButtons } from "@/components/club/verify-fee-buttons";
 
 export default async function ClubIuranPage() {
+  await requireAdminPage();
   const [periods, queue] = await Promise.all([
     prisma.feePeriod.findMany({
       orderBy: { dueDate: "desc" },

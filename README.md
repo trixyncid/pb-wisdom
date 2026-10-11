@@ -60,7 +60,6 @@ For member preview of the UI with rich mock data and **no Postgres / no real aut
 
 ```
 DEMO_MODE=1
-NEXT_PUBLIC_DEMO_MODE=1
 AUTH_SECRET=any-random-string
 AUTH_URL=https://your-app.vercel.app
 NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
@@ -72,7 +71,7 @@ NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 Locally:
 
 ```bash
-DEMO_MODE=1 NEXT_PUBLIC_DEMO_MODE=1 AUTH_SECRET=demo npm run dev
+DEMO_MODE=1 AUTH_SECRET=demo bun run dev
 ```
 
 Mutations (RSVP, upload, approve, etc.) are no-ops in demo mode.

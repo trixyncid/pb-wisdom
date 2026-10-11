@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
+// Excel/Sheets run cells starting with these as formulas (e.g. a nickname of
+// =HYPERLINK(...)); quoting does not stop it, a leading apostrophe does.
+function csvCell(value: string) {
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return `"${safe.replaceAll('"', '""')}"`;
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (session?.user?.role !== "ADMIN") {
@@ -41,13 +48,13 @@ export async function GET(req: NextRequest) {
   ];
 
   const csv = rows
-    .map((r) => r.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(","))
+    .map((r) => r.map((c) => csvCell(String(c))).join(","))
     .join("\n");
 
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="iuran-${period.label.replaceAll(" ", "-")}.csv"`,
+      "Content-Disposition": `attachment; filename="iuran-${period.label.replace(/[^A-Za-z0-9_-]+/g, "-")}.csv"`,
     },
   });
 }

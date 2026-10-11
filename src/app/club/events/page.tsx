@@ -1,3 +1,4 @@
+import { requireAdminPage } from "@/lib/authz";
 import Link from "next/link";
 import { format } from "date-fns";
 import { prisma } from "@/lib/db";
@@ -6,6 +7,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { CreateEventForm } from "@/components/club/create-event-form";
 
 export default async function ClubEventsPage() {
+  await requireAdminPage();
   const events = await prisma.event.findMany({
     orderBy: { startsAt: "desc" },
     include: { _count: { select: { photos: true, rsvps: true } } },

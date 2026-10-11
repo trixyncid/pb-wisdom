@@ -1,25 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireAdmin, requireMember } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import type { AttendanceStatus } from "@prisma/client";
 import { demoActionResult } from "@/lib/demo/guard";
-import { isDemoMode } from "@/lib/demo/mode";
-
-async function requireAdmin() {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") throw new Error("Forbidden");
-  return session;
-}
-
-function nextDateForWeekday(weekday: number) {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  const diff = (weekday + 7 - d.getDay()) % 7 || 7;
-  d.setDate(d.getDate() + diff);
-  return d;
-}
+import { nextDateForWeekday } from "@/lib/jobs";
 
 export async function upsertTrainingSessionAction(input: {
   id?: string;
@@ -78,8 +64,7 @@ export async function setAttendanceAction(
 ) {
   const demo = demoActionResult();
   if (demo) return demo;
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  const session = await requireMember();
 
   await prisma.sessionAttendance.upsert({
     where: {
@@ -98,19 +83,4 @@ export async function setAttendanceAction(
 
   revalidatePath("/jadwal");
   return { ok: true };
-}
-
-export async function ensureUpcomingOccurrencesAction() {
-  if (isDemoMode()) return;
-  const sessions = await prisma.trainingSession.findMany({
-    where: { active: true },
-  });
-  for (const s of sessions) {
-    const date = nextDateForWeekday(s.weekday);
-    await prisma.trainingOccurrence.upsert({
-      where: { sessionId_date: { sessionId: s.id, date } },
-      create: { sessionId: s.id, date },
-      update: {},
-    });
-  }
 }

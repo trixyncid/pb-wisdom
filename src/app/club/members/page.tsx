@@ -1,3 +1,4 @@
+import { requireAdminPage } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { AppShell } from "@/components/layout/app-shell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -6,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { MemberAdminActions } from "@/components/club/member-admin-actions";
 
 export default async function ClubMembersPage() {
+  await requireAdminPage();
   const users = await prisma.user.findMany({
     where: { role: { in: ["PENDING", "MEMBER", "ADMIN", "REJECTED"] } },
     include: { profile: true },

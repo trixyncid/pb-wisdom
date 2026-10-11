@@ -1,15 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireAdmin, requireUser } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
 
 export async function createAnnouncementAction(title: string, body: string) {
   const __demo = demoActionResult();
   if (__demo) return __demo;
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") throw new Error("Forbidden");
+  const session = await requireAdmin();
 
   await prisma.announcement.create({
     data: {
@@ -42,8 +41,7 @@ export async function createAnnouncementAction(title: string, body: string) {
 export async function markNotificationsReadAction() {
   const __demo = demoActionResult();
   if (__demo) return __demo;
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
+  const session = await requireUser();
 
   await prisma.notification.updateMany({
     where: { userId: session.user.id, read: false },
@@ -54,39 +52,4 @@ export async function markNotificationsReadAction() {
   revalidatePath("/profile");
   revalidatePath("/notifications");
   return { ok: true };
-}
-
-export async function sendOverdueFeeRemindersAction() {
-  const __demo = demoActionResult();
-  if (__demo) return __demo;
-  const secret = process.env.CRON_SECRET;
-  // Called from cron route with secret check
-
-  const now = new Date();
-  const periods = await prisma.feePeriod.findMany({
-    where: { dueDate: { lt: now } },
-    include: {
-      dues: {
-        where: { status: { in: ["UNPAID", "REJECTED"] } },
-      },
-    },
-  });
-
-  let count = 0;
-  for (const period of periods) {
-    for (const due of period.dues) {
-      await prisma.notification.create({
-        data: {
-          userId: due.userId,
-          type: "IURAN",
-          title: `Iuran ${period.label} terlambat`,
-          body: "Segera bayar dan upload bukti transfer.",
-          href: "/profile/iuran",
-        },
-      });
-      count += 1;
-    }
-  }
-
-  return { ok: true, count, secretConfigured: Boolean(secret) };
 }

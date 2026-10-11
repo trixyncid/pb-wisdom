@@ -1,3 +1,4 @@
+import { requireAdminPage } from "@/lib/authz";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatRp } from "@/lib/utils";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 
 export default async function ClubExportPage() {
+  await requireAdminPage();
   const periods = await prisma.feePeriod.findMany({
     orderBy: { dueDate: "desc" },
     include: {
