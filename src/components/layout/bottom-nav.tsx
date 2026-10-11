@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@prisma/client";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft,
   CalendarDays,
   Home,
   LayoutGrid,
   Receipt,
-  Shield,
   Swords,
   Trophy,
   UserRound,
@@ -19,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/lib/store";
 import Image from "next/image";
-import shuttleImg from "@/assets/brand/shuttle-3d.png";
+import logoImg from "@/assets/brand/logo.png";
 
 type Tab = {
   href: string;
@@ -64,22 +63,9 @@ export function BottomNav({ role }: { role: Role | null }) {
   const isAdmin = role === "ADMIN";
   const inAdminArea = pathname.startsWith("/club");
 
-  const tabs: Tab[] = inAdminArea && isAdmin
-    ? adminTabs
-    : [
-        ...memberTabs,
-        ...(isAdmin
-          ? [
-              {
-                href: "/club",
-                label: "Admin",
-                icon: Shield,
-                public: false,
-                match: "prefix" as const,
-              },
-            ]
-          : []),
-      ];
+  // Admins open /club from the shield button in the top bar, so the member
+  // bar stays at five tabs and the active label always fits.
+  const tabs: Tab[] = inAdminArea && isAdmin ? adminTabs : memberTabs;
 
   function go(tab: Tab, e: React.MouseEvent) {
     if (tab.public) return;
@@ -89,74 +75,80 @@ export function BottomNav({ role }: { role: Role | null }) {
     }
   }
 
-  const layoutId = inAdminArea ? "admin-nav-pill" : "nav-pill";
-  const compact = tabs.length > 5;
+  const onAdminBar = inAdminArea && isAdmin;
+  // Labels fit next to the active icon with up to 5 tabs on a 375px phone.
+  const showLabel = tabs.length <= 5;
+  const spring = { type: "spring", stiffness: 420, damping: 34 } as const;
 
   return (
     <>
-      <nav className="fixed bottom-4 left-1/2 z-50 w-[min(94vw,440px)] -translate-x-1/2 md:hidden">
-        {inAdminArea && isAdmin && (
-          <p className="mb-1.5 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-[#2eb6ea]">
+      <nav
+        aria-label="Navigasi utama"
+        className="fixed inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-50 flex flex-col items-center px-3 md:hidden"
+      >
+        {onAdminBar && (
+          <p className="mb-1.5 rounded-full bg-navy px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
             Club Admin
           </p>
         )}
-        <ul
-          className={cn(
-            "flex items-center justify-between rounded-[28px] border border-white/80 bg-white/95 py-2 shadow-[0_16px_40px_rgba(11,42,74,0.14)] backdrop-blur-xl",
-            compact ? "px-1.5" : "px-2",
-            inAdminArea && "border-[#2eb6ea]/25 bg-[#0b2a4a]",
-          )}
-        >
+        <ul className="flex items-center gap-1.5 rounded-full border border-white/70 bg-white/65 p-1.5 shadow-[0_18px_44px_rgba(14,44,60,0.18)] backdrop-blur-xl">
           {tabs.map((tab) => {
             const active = isActive(pathname, tab);
             const Icon = tab.icon;
-            const onAdminBar = inAdminArea && isAdmin;
             return (
-              <li key={`${tab.href}-${tab.label}`} className="relative">
+              <motion.li key={`${tab.href}-${tab.label}`} layout transition={spring} className="relative">
                 <Link
                   href={tab.href}
                   onClick={(e) => go(tab, e)}
                   aria-label={tab.label}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
-                    "relative flex flex-col items-center justify-center rounded-full text-[9px] font-bold transition",
-                    compact ? "h-11 w-11" : "h-12 w-12",
-                    onAdminBar
-                      ? active
-                        ? "text-[#0b2a4a]"
-                        : "text-white/55"
-                      : active
-                        ? "text-white"
-                        : "text-slate-400",
+                    "relative flex h-12 items-center rounded-full text-sm font-semibold transition-colors duration-200",
+                    active
+                      ? cn("text-white", showLabel ? "gap-2 pl-1.5 pr-4" : "w-12 justify-center")
+                      : "w-12 justify-center bg-white text-navy shadow-[0_2px_8px_rgba(14,44,60,0.06)] hover:bg-cream",
                   )}
                 >
                   {active && (
                     <motion.span
-                      layoutId={layoutId}
-                      className={cn(
-                        "absolute inset-0 rounded-full shadow-[0_8px_18px_rgba(46,182,234,0.45)]",
-                        onAdminBar ? "bg-white" : "bg-[#2eb6ea]",
-                      )}
-                      transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                      layoutId="nav-active-pill"
+                      transition={spring}
+                      className="absolute inset-0 rounded-full bg-navy shadow-[0_10px_22px_rgba(14,44,60,0.35)]"
                     />
                   )}
-                  <Icon className={cn("relative z-10", compact ? "h-4 w-4" : "h-5 w-5")} />
+                  <span
+                    className={cn(
+                      "relative z-10 flex items-center justify-center rounded-full transition-all duration-300",
+                      active ? "size-9 bg-white text-navy" : "size-5",
+                    )}
+                  >
+                    <Icon className="size-[18px]" strokeWidth={active ? 2.4 : 2} />
+                  </span>
+                  <AnimatePresence initial={false}>
+                    {active && showLabel && (
+                      <motion.span
+                        key="label"
+                        initial={{ opacity: 0, x: -6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -6 }}
+                        transition={{ duration: 0.2, delay: 0.05 }}
+                        className="relative z-10 whitespace-nowrap"
+                      >
+                        {tab.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </Link>
-              </li>
+              </motion.li>
             );
           })}
         </ul>
       </nav>
 
-      <aside className="fixed left-0 top-0 z-40 hidden h-full w-60 flex-col border-r border-[#0b2a4a]/8 bg-white/90 p-4 backdrop-blur md:flex">
-        <div className="mb-8 flex items-center gap-2 px-2">
-          <Image src={shuttleImg} alt="" width={40} height={40} className="h-10 w-10" />
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2eb6ea]">
-              PB Wisdom
-            </p>
-            <p className="text-lg font-black text-[#0b2a4a]">Club App</p>
-          </div>
-        </div>
+      <aside className="fixed left-0 top-0 z-40 hidden h-full w-64 flex-col border-r border-navy/8 bg-white/70 p-5 backdrop-blur-xl md:flex">
+        <Link href="/" className="mb-8 block px-2" aria-label="PB Wisdom, beranda">
+          <Image src={logoImg} alt="PB Wisdom" width={170} height={129} priority className="h-auto w-[170px]" />
+        </Link>
 
         <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
           Member
@@ -171,13 +163,15 @@ export function BottomNav({ role }: { role: Role | null }) {
                   href={tab.href}
                   onClick={(e) => go(tab, e)}
                   className={cn(
-                    "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold transition",
+                    "flex items-center gap-3 rounded-full p-1.5 pr-4 text-sm font-semibold transition-colors duration-200",
                     active
-                      ? "bg-[#2eb6ea] text-white shadow-md shadow-sky-300/40"
-                      : "text-[#0b2a4a]/70 hover:bg-[#e8f3fb]",
+                      ? "bg-navy text-white shadow-[0_10px_22px_rgba(14,44,60,0.25)]"
+                      : "text-navy/70 hover:bg-sand hover:text-navy",
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <span className={cn("flex size-9 items-center justify-center rounded-full", active ? "bg-white text-navy" : "bg-white/80")}>
+                    <Icon className="size-4" />
+                  </span>
                   {tab.label}
                 </Link>
               </li>
@@ -187,7 +181,7 @@ export function BottomNav({ role }: { role: Role | null }) {
 
         {isAdmin && (
           <>
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-[#2eb6ea]">
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-accent-ink">
               Club Admin
             </p>
             <ul className="space-y-1">
@@ -201,13 +195,15 @@ export function BottomNav({ role }: { role: Role | null }) {
                       <Link
                         href={tab.href}
                         className={cn(
-                          "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold transition",
+                          "flex items-center gap-3 rounded-full p-1.5 pr-4 text-sm font-semibold transition-colors duration-200",
                           active
-                            ? "bg-[#0b2a4a] text-white shadow-md"
-                            : "text-[#0b2a4a]/70 hover:bg-[#e8f3fb]",
+                            ? "bg-accent text-navy shadow-[0_10px_22px_rgba(238,159,72,0.35)]"
+                            : "text-navy/70 hover:bg-sand hover:text-navy",
                         )}
                       >
-                        <Icon className="h-4 w-4" />
+                        <span className={cn("flex size-9 items-center justify-center rounded-full", active ? "bg-white text-navy" : "bg-white/80")}>
+                          <Icon className="size-4" />
+                        </span>
                         {tab.label}
                       </Link>
                     </li>

@@ -15,13 +15,13 @@ export default async function ProfilePage() {
   return (
     <>
       <div className="mb-5">
-        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#2eb6ea]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-accent-ink">
           Akun
         </p>
-        <h1 className="text-2xl font-black text-[#0b2a4a]">Profil</h1>
+        <h1 className="text-2xl font-black text-navy">Profil</h1>
       </div>
 
-      <div className="mb-4 overflow-hidden rounded-[32px] border border-white/80 bg-gradient-to-b from-[#dff3fc] via-white to-white p-5 shadow-[0_16px_40px_rgba(11,42,74,0.08)]">
+      <div className="mb-4 overflow-hidden rounded-[32px] border border-white/80 bg-gradient-to-b from-accent-soft via-white to-white p-5 shadow-[0_16px_40px_rgba(14,44,60,0.08)]">
         <ProfileForm
           initial={{
             nickname: profile?.nickname ?? "",

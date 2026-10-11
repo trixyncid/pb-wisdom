@@ -48,7 +48,7 @@ export default async function PlayPage() {
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-[#0b2a4a]">Play</h1>
+        <h1 className="text-2xl font-bold text-navy">Play</h1>
         <p className="text-sm text-slate-400">Catat match & pantau winrate</p>
       </div>
 
@@ -64,7 +64,7 @@ export default async function PlayPage() {
             <p className="text-[10px] uppercase tracking-wide text-slate-400">
               {label}
             </p>
-            <p className="score-glow mt-1 text-2xl font-black text-[#2eb6ea]">
+            <p className="score-glow mt-1 text-2xl font-black text-accent-ink">
               {s.winrate}%
             </p>
             <p className="text-[11px] text-slate-400">
@@ -78,8 +78,8 @@ export default async function PlayPage() {
         <Card className="mb-4 space-y-3 border-amber-200">
           <CardTitle>Konfirmasi match</CardTitle>
           {pending.map((p) => (
-            <div key={p.id} className="rounded-xl bg-[#f3f8fc] p-3">
-              <p className="text-sm font-medium text-[#0b2a4a]">{p.match.score}</p>
+            <div key={p.id} className="rounded-xl bg-cream p-3">
+              <p className="text-sm font-medium text-navy">{p.match.score}</p>
               <p className="mb-2 text-xs text-slate-400">
                 {p.match.players
                   .map((x) => x.user.profile?.nickname ?? x.user.name)
@@ -103,16 +103,16 @@ export default async function PlayPage() {
       </Card>
 
       <section className="mb-5">
-        <h2 className="mb-2 text-lg font-bold text-[#0b2a4a]">Leaderboard</h2>
+        <h2 className="mb-2 text-lg font-bold text-navy">Leaderboard</h2>
         <Card className="space-y-1 p-2">
           {leaderboard.map((row, i) => (
             <div
               key={row.userId}
               className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
-                row.userId === session.user.id ? "bg-cyan-400/15" : ""
+                row.userId === session.user.id ? "bg-accent/15" : ""
               }`}
             >
-              <span className="w-6 text-center text-sm font-bold text-[#2eb6ea]">
+              <span className="w-6 text-center text-sm font-bold text-accent-ink">
                 {i + 1}
               </span>
               <Avatar className="h-8 w-8">
@@ -120,24 +120,24 @@ export default async function PlayPage() {
                 <AvatarFallback>{row.nickname.slice(0, 2)}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <p className="text-sm font-medium text-[#0b2a4a]">{row.nickname}</p>
+                <p className="text-sm font-medium text-navy">{row.nickname}</p>
                 <p className="text-[11px] text-slate-400">
                   {row.played} matches
                 </p>
               </div>
-              <p className="font-bold text-[#2eb6ea]">{row.winrate}%</p>
+              <p className="font-bold text-accent-ink">{row.winrate}%</p>
             </div>
           ))}
         </Card>
       </section>
 
       <section>
-        <h2 className="mb-2 text-lg font-bold text-[#0b2a4a]">Recent matches</h2>
+        <h2 className="mb-2 text-lg font-bold text-navy">Recent matches</h2>
         <div className="space-y-2">
           {recent.map((m) => (
             <Card key={m.id} className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold text-[#0b2a4a]">{m.score}</p>
+                <p className="text-sm font-semibold text-navy">{m.score}</p>
                 <p className="text-xs text-slate-400">
                   {m.players
                     .map((p) => p.user.profile?.nickname ?? p.user.name)

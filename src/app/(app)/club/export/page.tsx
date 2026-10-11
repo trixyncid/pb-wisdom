@@ -19,7 +19,7 @@ export default async function ClubExportPage() {
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-[#0b2a4a]">Export iuran</h1>
+        <h1 className="text-2xl font-bold text-navy">Export iuran</h1>
         <p className="text-sm text-slate-400">CSV untuk bendahara</p>
       </div>
 
@@ -45,7 +45,7 @@ export default async function ClubExportPage() {
         })}
       </div>
 
-      <Link href="/club" className="mt-4 inline-block text-sm text-[#2eb6ea]">
+      <Link href="/club" className="mt-4 inline-block text-sm text-accent-ink">
         ← Kembali
       </Link>
     </>

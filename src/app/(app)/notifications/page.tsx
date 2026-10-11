@@ -35,16 +35,16 @@ export default async function NotificationsPage() {
       <div className="mb-5 flex items-center gap-3">
         <Link
           href="/"
-          className="rounded-full bg-white p-2 shadow-sm text-[#0b2a4a]"
+          className="rounded-full bg-white p-2 shadow-sm text-navy"
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2eb6ea]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-ink">
             Inbox
           </p>
-          <h1 className="flex items-center gap-2 text-2xl font-black text-[#0b2a4a]">
-            <Bell className="h-6 w-6 text-[#2eb6ea]" />
+          <h1 className="flex items-center gap-2 text-2xl font-black text-navy">
+            <Bell className="h-6 w-6 text-accent-ink" />
             Notifikasi
           </h1>
         </div>
@@ -59,10 +59,10 @@ export default async function NotificationsPage() {
         {notifications.map((n) => (
           <Card
             key={n.id}
-            className={`space-y-1 ${n.read ? "" : "border-[#2eb6ea]/40 bg-[#e8f3fb]"}`}
+            className={`space-y-1 ${n.read ? "" : "border-accent/40 bg-sand"}`}
           >
             <div className="flex items-start justify-between gap-2">
-              <p className="font-bold text-[#0b2a4a]">{n.title}</p>
+              <p className="font-bold text-navy">{n.title}</p>
               <Badge className="shrink-0 normal-case tracking-normal">
                 {n.type}
               </Badge>
@@ -76,7 +76,7 @@ export default async function NotificationsPage() {
                 })}
               </p>
               {n.href && (
-                <Link href={n.href} className="text-xs font-bold text-[#2eb6ea]">
+                <Link href={n.href} className="text-xs font-bold text-accent-ink">
                   Buka
                 </Link>
               )}

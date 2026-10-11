@@ -23,7 +23,7 @@ function PlayerSelect({
   return (
     <select
       aria-label="Pilih player"
-      className="h-11 w-full rounded-xl border border-[#0b2a4a]/10 bg-[#f3f8fc] px-3 text-sm text-[#0b2a4a]"
+      className="h-11 w-full rounded-xl border border-navy/10 bg-cream px-3 text-sm text-navy"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >

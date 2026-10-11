@@ -17,7 +17,7 @@ export default async function ClubMembersPage() {
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-[#0b2a4a]">Members</h1>
+        <h1 className="text-2xl font-bold text-navy">Members</h1>
         <p className="text-sm text-slate-400">Approve, deactivate, directory</p>
       </div>
       <div className="space-y-2">
@@ -31,7 +31,7 @@ export default async function ClubMembersPage() {
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="truncate font-medium text-[#0b2a4a]">
+                <p className="truncate font-medium text-navy">
                   {u.profile?.nickname ?? u.name}
                 </p>
                 <p className="truncate text-xs text-slate-400">{u.email}</p>

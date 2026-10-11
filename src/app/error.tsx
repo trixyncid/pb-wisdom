@@ -18,10 +18,10 @@ export default function Error({
   return (
     <main className="court-stripes flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm space-y-4 rounded-[32px] bg-white p-6 text-center shadow-xl">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2eb6ea]">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent-ink">
           Oops
         </p>
-        <h1 className="text-xl font-black text-[#0b2a4a]">Terjadi kesalahan</h1>
+        <h1 className="text-xl font-black text-navy">Terjadi kesalahan</h1>
         <p className="text-sm text-slate-500">
           Halaman ini gagal dimuat. Coba lagi, atau kembali ke beranda.
         </p>

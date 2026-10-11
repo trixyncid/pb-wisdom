@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Image from "next/image";
-import shuttleImg from "@/assets/brand/shuttle-3d.png";
+import shuttleImg from "@/assets/3d/shuttle.png";
 
 export function AuthModal() {
   const router = useRouter();
@@ -59,7 +59,7 @@ export function AuthModal() {
     <AnimatePresence>
       {authOpen && (
         <motion.div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#0b2a4a]/45 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/45 p-4 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -76,7 +76,7 @@ export function AuthModal() {
             <button
               type="button"
               onClick={close}
-              className="absolute right-4 top-4 rounded-full bg-[#e8f3fb] p-2 text-[#0b2a4a]"
+              className="absolute right-4 top-4 rounded-full bg-sand p-2 text-navy"
             >
               <X className="h-4 w-4" />
             </button>
@@ -85,15 +85,15 @@ export function AuthModal() {
               <Image
                 src={shuttleImg}
                 alt=""
-                width={56}
-                height={56}
-                className="float-y h-14 w-14 object-contain"
+                width={60}
+                height={64}
+                className="float-tilt h-16 w-auto object-contain"
               />
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2eb6ea]">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent-ink">
                   Member access
                 </p>
-                <h2 className="text-xl font-black text-[#0b2a4a]">
+                <h2 className="text-xl font-black text-navy">
                   Masuk PB Wisdom
                 </h2>
               </div>
@@ -130,7 +130,7 @@ export function AuthModal() {
 
             <p className="mt-3 text-center text-xs text-slate-400">
               Belum punya akun?{" "}
-              <a href="/register" className="font-bold text-[#2eb6ea]">
+              <a href="/register" className="font-bold text-accent-ink">
                 Daftar
               </a>
             </p>

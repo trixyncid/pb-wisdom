@@ -41,8 +41,8 @@ export default async function EventDetailPage({
     <>
       <div className="mb-4 space-y-2">
         <Badge>{event.type}</Badge>
-        <h1 className="text-2xl font-bold text-[#0b2a4a]">{event.title}</h1>
-        <p className="text-sm text-[#2eb6ea]">
+        <h1 className="text-2xl font-bold text-navy">{event.title}</h1>
+        <p className="text-sm text-accent-ink">
           {formatClub(event.startsAt, "EEEE, d MMM yyyy · HH:mm", {
             locale: localeId,
           })}
@@ -71,7 +71,7 @@ export default async function EventDetailPage({
       </Card>
 
       <section className="mb-5">
-        <h2 className="mb-2 text-sm font-semibold text-[#0b2a4a]">Peserta</h2>
+        <h2 className="mb-2 text-sm font-semibold text-navy">Peserta</h2>
         <div className="flex flex-wrap gap-1.5">
           {event.rsvps
             .filter((r) => r.status === "GOING" || r.status === "WAITLIST")

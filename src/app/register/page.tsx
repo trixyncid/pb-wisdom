@@ -51,9 +51,9 @@ function RegisterForm() {
   }
 
   return (
-    <Card className="w-full max-w-md space-y-5 border-[#2eb6ea]/30 bg-white p-6">
+    <Card className="w-full max-w-md space-y-5 border-accent/30 bg-white p-6">
       <div className="space-y-1 text-center">
-        <h1 className="text-2xl font-bold text-[#0b2a4a]">Daftar PB Wisdom</h1>
+        <h1 className="text-2xl font-bold text-navy">Daftar PB Wisdom</h1>
         <p className="text-sm text-slate-400">
           Setelah daftar, admin perlu menyetujui akunmu
         </p>
@@ -96,7 +96,7 @@ function RegisterForm() {
       </form>
       <p className="text-center text-sm text-slate-400">
         Sudah punya akun?{" "}
-        <Link href="/login" className="font-semibold text-[#2eb6ea]">
+        <Link href="/login" className="font-semibold text-accent-ink">
           Masuk
         </Link>
       </p>

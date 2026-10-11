@@ -59,7 +59,7 @@ export function EventGallery({
 
   return (
     <section>
-      <h2 className="mb-2 text-lg font-bold text-[#0b2a4a]">Album event</h2>
+      <h2 className="mb-2 text-lg font-bold text-navy">Album event</h2>
       <Card className="mb-3 space-y-2">
         <p className="text-xs text-slate-400">
           Paste URL gambar (Cloudinary/UploadThing/Unsplash). Local seed uses
@@ -84,7 +84,7 @@ export function EventGallery({
         {photos.map((p) => (
           <div
             key={p.id}
-            className="group relative overflow-hidden rounded-2xl border border-[#0b2a4a]/8"
+            className="group relative overflow-hidden rounded-2xl border border-navy/8"
           >
             <button
               type="button"
@@ -107,7 +107,7 @@ export function EventGallery({
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             )}
-            <p className="absolute bottom-0 inset-x-0 bg-black/50 px-2 py-1 text-[10px] text-[#0b2a4a]">
+            <p className="absolute bottom-0 inset-x-0 bg-black/50 px-2 py-1 text-[10px] text-navy">
               {p.uploaderName}
             </p>
           </div>

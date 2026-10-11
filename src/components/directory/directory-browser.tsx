@@ -101,7 +101,7 @@ export function DirectoryBrowser({
               <AvatarFallback>{m.nickname.slice(0, 2)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-[#0b2a4a]">
+              <p className="truncate text-sm font-bold text-navy">
                 {m.nickname}
               </p>
               <p className="truncate text-[11px] text-slate-400">

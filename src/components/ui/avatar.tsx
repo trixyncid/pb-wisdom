@@ -8,7 +8,7 @@ export function Avatar({
   return (
     <AvatarPrimitive.Root
       className={cn(
-        "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full ring-2 ring-[#2eb6ea]/35",
+        "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full ring-2 ring-accent/35",
         className,
       )}
       {...props}
@@ -35,7 +35,7 @@ export function AvatarFallback({
   return (
     <AvatarPrimitive.Fallback
       className={cn(
-        "flex h-full w-full items-center justify-center bg-[#e8f3fb] text-xs font-bold text-[#0b2a4a]",
+        "flex h-full w-full items-center justify-center bg-sand text-xs font-bold text-navy",
         className,
       )}
       {...props}

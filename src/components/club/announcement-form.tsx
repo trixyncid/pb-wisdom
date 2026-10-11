@@ -35,7 +35,7 @@ export function AnnouncementForm() {
         required
       />
       <textarea
-        className="min-h-24 w-full rounded-xl border border-[#0b2a4a]/10 bg-[#f3f8fc] px-3 py-2 text-sm text-[#0b2a4a]"
+        className="min-h-24 w-full rounded-xl border border-navy/10 bg-cream px-3 py-2 text-sm text-navy"
         placeholder="Isi pengumuman"
         value={body}
         onChange={(e) => setBody(e.target.value)}

@@ -19,7 +19,7 @@ export default async function IuranPage() {
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-[#0b2a4a]">Iuran saya</h1>
+        <h1 className="text-2xl font-bold text-navy">Iuran saya</h1>
         <p className="text-sm text-slate-400">Upload bukti transfer untuk verifikasi admin</p>
       </div>
 
@@ -28,8 +28,8 @@ export default async function IuranPage() {
           <Card key={due.id} className="space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="font-semibold text-[#0b2a4a]">{due.period.label}</p>
-                <p className="text-sm text-[#2eb6ea]">
+                <p className="font-semibold text-navy">{due.period.label}</p>
+                <p className="text-sm text-accent-ink">
                   {formatRp(due.period.amount)}
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-xs text-slate-400">
@@ -59,7 +59,7 @@ export default async function IuranPage() {
                 src={proofUrl(due.id, due.submittedAt)}
                 alt="Bukti transfer"
                 loading="lazy"
-                className="max-h-48 rounded-xl border border-[#0b2a4a]/8 object-contain"
+                className="max-h-48 rounded-xl border border-navy/8 object-contain"
               />
             )}
             {(due.status === "UNPAID" || due.status === "REJECTED") && (

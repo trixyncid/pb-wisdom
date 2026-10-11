@@ -54,7 +54,7 @@ export function CreateFeePeriodForm() {
       <div className="space-y-1">
         <Label>Payment instructions</Label>
         <textarea
-          className="min-h-20 w-full rounded-xl border border-[#0b2a4a]/10 bg-[#f3f8fc] px-3 py-2 text-sm text-[#0b2a4a]"
+          className="min-h-20 w-full rounded-xl border border-navy/10 bg-cream px-3 py-2 text-sm text-navy"
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Contoh: BCA 1234567890 a.n. PB Wisdom"

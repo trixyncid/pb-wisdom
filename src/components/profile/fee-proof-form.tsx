@@ -29,7 +29,7 @@ export function FeeProofForm({ dueId }: { dueId: string }) {
 
   return (
     <div className="space-y-2">
-      <label htmlFor={inputId} className="block text-xs font-semibold text-[#0b2a4a]">
+      <label htmlFor={inputId} className="block text-xs font-semibold text-navy">
         Foto / screenshot bukti transfer
       </label>
       <input
@@ -37,14 +37,14 @@ export function FeeProofForm({ dueId }: { dueId: string }) {
         type="file"
         accept="image/*"
         onChange={(e) => onFile(e.target.files?.[0])}
-        className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-[#e8f3fb] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[#0b2a4a]"
+        className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-sand file:px-3 file:py-2 file:text-sm file:font-semibold file:text-navy"
       />
       {image && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={image}
           alt="Pratinjau bukti transfer"
-          className="max-h-48 rounded-xl border border-[#0b2a4a]/8 object-contain"
+          className="max-h-48 rounded-xl border border-navy/8 object-contain"
         />
       )}
       <Button

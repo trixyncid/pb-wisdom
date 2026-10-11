@@ -50,7 +50,7 @@ export function CreateEventForm() {
         <div className="space-y-1">
           <Label>Type</Label>
           <select
-            className="h-11 w-full rounded-xl border border-[#0b2a4a]/10 bg-[#f3f8fc] px-2 text-sm text-[#0b2a4a]"
+            className="h-11 w-full rounded-xl border border-navy/10 bg-cream px-2 text-sm text-navy"
             value={type}
             onChange={(e) => setType(e.target.value as EventType)}
           >

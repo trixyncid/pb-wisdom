@@ -13,7 +13,7 @@ export default async function ClubJadwalPage() {
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-[#0b2a4a]">Kelola Jadwal</h1>
+        <h1 className="text-2xl font-bold text-navy">Kelola Jadwal</h1>
         <p className="text-sm text-slate-400">Recurring weekly training</p>
       </div>
 
@@ -25,8 +25,8 @@ export default async function ClubJadwalPage() {
       <div className="space-y-2">
         {sessions.map((s) => (
           <Card key={s.id}>
-            <p className="font-semibold text-[#0b2a4a]">{s.title}</p>
-            <p className="text-sm text-[#2eb6ea]">
+            <p className="font-semibold text-navy">{s.title}</p>
+            <p className="text-sm text-accent-ink">
               {weekdayLabel(s.weekday)} · {s.startTime}
               {s.endTime ? `–${s.endTime}` : ""}
             </p>

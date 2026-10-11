@@ -13,7 +13,7 @@ export function InvitePanel({ code }: { code: string | null }) {
 
   return (
     <div className="space-y-2">
-      <p className="rounded-xl bg-[#e8f3fb] px-3 py-2 font-mono text-sm text-[#2eb6ea]">
+      <p className="rounded-xl bg-sand px-3 py-2 font-mono text-sm text-accent-ink">
         {code ?? "Belum ada kode aktif"}
       </p>
       {path && <p className="break-all text-xs text-slate-400">{path}</p>}

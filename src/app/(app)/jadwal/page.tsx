@@ -39,10 +39,10 @@ export default async function JadwalPage() {
   return (
     <>
       <div className="mb-5">
-        <Badge className="mb-2 bg-[#e8f3fb] text-[#2eb6ea] normal-case tracking-normal">
+        <Badge className="mb-2 bg-sand text-accent-ink normal-case tracking-normal">
           Public schedule
         </Badge>
-        <h1 className="text-2xl font-black text-[#0b2a4a]">Jadwal Latihan</h1>
+        <h1 className="text-2xl font-black text-navy">Jadwal Latihan</h1>
         <p className="text-sm text-slate-500">
           Sesi mingguan PB Wisdom Medan — RSVP butuh login member
         </p>
@@ -68,10 +68,10 @@ export default async function JadwalPage() {
             <Card key={occ.id} className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-lg font-black text-[#0b2a4a]">
+                  <p className="text-lg font-black text-navy">
                     {occ.session.title}
                   </p>
-                  <p className="text-sm font-semibold text-[#2eb6ea]">
+                  <p className="text-sm font-semibold text-accent-ink">
                     {weekdayLabel(occ.session.weekday)} ·{" "}
                     {formatClub(occ.date, "EEEE, d MMM yyyy", { locale: localeId })}
                   </p>
@@ -91,7 +91,7 @@ export default async function JadwalPage() {
                   href={`https://wa.me/?text=${encodeURIComponent(`Yuk latihan: ${occ.session.title} — ${shareUrl}`)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-2xl bg-[#e8f3fb] p-2.5 text-[#0b2a4a]"
+                  className="rounded-2xl bg-sand p-2.5 text-navy"
                 >
                   <Share2 className="h-4 w-4" />
                 </a>
@@ -104,7 +104,7 @@ export default async function JadwalPage() {
                 {going.slice(0, 8).map((a) => (
                   <Badge
                     key={a.id}
-                    className="normal-case tracking-normal bg-[#f3f8fc]"
+                    className="normal-case tracking-normal bg-cream"
                   >
                     {a.user.profile?.nickname ?? a.user.name}
                   </Badge>

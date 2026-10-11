@@ -29,16 +29,16 @@ export default async function DirectoryPage({
       <div className="mb-5 flex items-center gap-3">
         <Link
           href="/profile"
-          className="rounded-full bg-white p-2 text-[#0b2a4a] shadow-sm"
+          className="rounded-full bg-white p-2 text-navy shadow-sm"
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2eb6ea]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-ink">
             Members
           </p>
-          <h1 className="flex items-center gap-2 text-2xl font-black text-[#0b2a4a]">
-            <Users className="h-6 w-6 text-[#2eb6ea]" />
+          <h1 className="flex items-center gap-2 text-2xl font-black text-navy">
+            <Users className="h-6 w-6 text-accent-ink" />
             Directory
           </h1>
         </div>

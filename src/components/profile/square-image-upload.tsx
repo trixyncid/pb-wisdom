@@ -92,10 +92,10 @@ export function SquareImageUpload({
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="relative h-28 w-28 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2eb6ea]"
+        className="relative h-28 w-28 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         aria-label="Upload foto profil"
       >
-        <span className="absolute inset-0 overflow-hidden rounded-full ring-4 ring-[#2eb6ea]/30 shadow-[0_12px_30px_rgba(46,182,234,0.25)]">
+        <span className="absolute inset-0 overflow-hidden rounded-full ring-4 ring-accent/30 shadow-[0_12px_30px_rgba(238,159,72,0.25)]">
           {value ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -104,12 +104,12 @@ export function SquareImageUpload({
               className="h-full w-full object-cover"
             />
           ) : (
-            <span className="flex h-full w-full items-center justify-center bg-[#e8f3fb] text-2xl font-black text-[#0b2a4a]">
+            <span className="flex h-full w-full items-center justify-center bg-sand text-2xl font-black text-navy">
               {initials.slice(0, 2).toUpperCase()}
             </span>
           )}
         </span>
-        <span className="absolute -bottom-1 left-1/2 z-10 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border-4 border-white bg-[#2eb6ea] text-white shadow-md">
+        <span className="absolute -bottom-1 left-1/2 z-10 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border-4 border-white bg-accent text-navy shadow-md">
           <Camera className="h-4 w-4" />
         </span>
       </button>
@@ -125,9 +125,9 @@ export function SquareImageUpload({
       />
 
       {raw && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0b2a4a]/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/50 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md overflow-hidden rounded-[28px] bg-white p-4 shadow-2xl">
-            <p className="mb-3 text-sm font-bold text-[#0b2a4a]">
+            <p className="mb-3 text-sm font-bold text-navy">
               Crop foto 1:1
             </p>
             <div className="relative h-72 overflow-hidden rounded-2xl bg-slate-900">
@@ -152,7 +152,7 @@ export function SquareImageUpload({
                 step={0.05}
                 value={zoom}
                 onChange={(e) => setZoom(Number(e.target.value))}
-                className="mt-1 w-full accent-[#2eb6ea]"
+                className="mt-1 w-full accent-accent"
               />
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">

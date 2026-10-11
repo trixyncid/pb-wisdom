@@ -44,10 +44,10 @@ export default async function ClubPage() {
   return (
     <>
       <div className="mb-5">
-        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#2eb6ea]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-accent-ink">
           Operations
         </p>
-        <h1 className="text-2xl font-black text-[#0b2a4a]">Club Admin</h1>
+        <h1 className="text-2xl font-black text-navy">Club Admin</h1>
         <p className="mt-1 text-sm text-slate-500">
           Approve members, iuran, jadwal & events
         </p>
@@ -56,7 +56,7 @@ export default async function ClubPage() {
       <div className="mb-4 grid gap-2 sm:grid-cols-2">
         {links.map((l) => (
           <Link key={l.href} href={l.href}>
-            <Card className="h-full transition hover:border-cyan-400/40">
+            <Card className="h-full transition hover:border-accent/40">
               <CardTitle>{l.title}</CardTitle>
               <p className="mt-1 text-xs text-slate-400">{l.desc}</p>
             </Card>
@@ -74,8 +74,8 @@ export default async function ClubPage() {
               m.players.filter((p) => p.team === t).map(name).join(" & ");
             const winner = m.players.find((p) => p.won)?.team;
             return (
-              <div key={m.id} className="space-y-2 rounded-xl bg-[#f3f8fc] p-3">
-                <p className="text-sm font-semibold text-[#0b2a4a]">
+              <div key={m.id} className="space-y-2 rounded-xl bg-cream p-3">
+                <p className="text-sm font-semibold text-navy">
                   {team(1)} vs {team(2)} · {m.score}
                 </p>
                 <p className="text-xs text-slate-500">

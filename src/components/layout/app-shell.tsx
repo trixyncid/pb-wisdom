@@ -29,7 +29,7 @@ export async function AppShell({
     profile?.nickname ?? session?.user?.name ?? session?.user?.email ?? "Member";
 
   return (
-    <div className="min-h-dvh md:pl-60">
+    <div className="min-h-dvh md:pl-64">
       <BottomNav role={session?.user?.role ?? null} />
       {isMember && (
         <TopBar

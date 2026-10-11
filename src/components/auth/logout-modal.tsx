@@ -22,7 +22,7 @@ export function LogoutModal() {
     <AnimatePresence>
       {logoutOpen && (
         <motion.div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-[#0b2a4a]/45 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-navy/45 p-4 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -36,10 +36,10 @@ export function LogoutModal() {
             className="w-full max-w-sm rounded-[28px] bg-white p-6 text-center shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#e8f3fb] text-[#0b2a4a]">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-sand text-navy">
               <LogOut className="h-6 w-6" />
             </div>
-            <h2 className="text-xl font-black text-[#0b2a4a]">Keluar akun?</h2>
+            <h2 className="text-xl font-black text-navy">Keluar akun?</h2>
             <p className="mt-2 text-sm text-slate-500">
               Kamu bisa login lagi kapan saja untuk RSVP, match, dan iuran.
             </p>

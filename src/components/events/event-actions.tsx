@@ -53,7 +53,7 @@ export function EventActions({
         href={`https://wa.me/?text=${encodeURIComponent(`Join event PB Wisdom: ${shareUrl}`)}`}
         target="_blank"
         rel="noreferrer"
-        className="ml-auto inline-flex h-9 items-center gap-1 rounded-lg border border-[#0b2a4a]/10 px-3 text-xs text-[#2eb6ea]"
+        className="ml-auto inline-flex h-9 items-center gap-1 rounded-lg border border-navy/10 px-3 text-xs text-accent-ink"
       >
         <Share2 className="h-3.5 w-3.5" /> Share
       </a>

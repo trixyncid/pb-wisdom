@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import Link from "next/link";
 import { id as localeId } from "date-fns/locale";
 import { Images } from "lucide-react";
@@ -7,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { formatClub } from "@/lib/time";
 
 export default async function EventsPage() {
+  // Live data: render per request, never at build time (no DB during the build).
+  await connection();
   const events = await prisma.event.findMany({
     orderBy: { startsAt: "desc" },
     include: {
@@ -19,7 +22,7 @@ export default async function EventsPage() {
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-[#0b2a4a]">Events</h1>
+        <h1 className="text-2xl font-bold text-navy">Events</h1>
         <p className="text-sm text-slate-400">
           Sparring, turnamen, gathering — plus album foto
         </p>
@@ -54,8 +57,8 @@ export default async function EventsPage() {
                         <Badge className="bg-white/10 text-slate-300">Past</Badge>
                       )}
                     </div>
-                    <p className="font-semibold text-[#0b2a4a]">{event.title}</p>
-                    <p className="text-xs text-[#2eb6ea]">
+                    <p className="font-semibold text-navy">{event.title}</p>
+                    <p className="text-xs text-accent-ink">
                       {formatClub(event.startsAt, "d MMM yyyy · HH:mm", {
                         locale: localeId,
                       })}

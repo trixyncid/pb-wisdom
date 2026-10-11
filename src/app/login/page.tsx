@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
-import heroImg from "@/assets/brand/hero-racket-shuttle.png";
+import logoImg from "@/assets/brand/logo.png";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -41,14 +41,14 @@ export default function LoginPage() {
       <Card className="w-full max-w-md space-y-6 p-6">
         <div className="space-y-2 text-center">
           <Image
-            src={heroImg}
-            alt=""
-            width={108}
-            height={144}
+            src={logoImg}
+            alt="PB Wisdom"
+            width={200}
+            height={151}
             preload
-            className="float-y mx-auto h-36 w-auto object-contain"
+            className="mx-auto h-auto w-[200px]"
           />
-          <h1 className="text-2xl font-black text-[#0b2a4a]">PB Wisdom</h1>
+          <h1 className="sr-only">PB Wisdom</h1>
           <p className="text-sm text-slate-500">Portal internal member & admin</p>
         </div>
 
@@ -80,14 +80,14 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-slate-500">
           Belum punya akun?{" "}
-          <Link href="/register" className="font-bold text-[#2eb6ea]">
+          <Link href="/register" className="font-bold text-accent-ink">
             Daftar
           </Link>
         </p>
 
         {process.env.NODE_ENV === "development" && (
-          <div className="rounded-2xl bg-[#e8f3fb] p-3 text-[11px] leading-relaxed text-slate-500">
-            <p className="mb-1 font-bold text-[#0b2a4a]">Local seed logins</p>
+          <div className="rounded-2xl bg-sand p-3 text-[11px] leading-relaxed text-slate-500">
+            <p className="mb-1 font-bold text-navy">Local seed logins</p>
             <p>admin@pbwisdom.local / WisdomAdmin1!</p>
             <p>member@pbwisdom.local / WisdomMember1!</p>
           </div>

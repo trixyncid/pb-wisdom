@@ -15,7 +15,7 @@ export default async function ClubEventsPage() {
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-[#0b2a4a]">Kelola Events</h1>
+        <h1 className="text-2xl font-bold text-navy">Kelola Events</h1>
       </div>
       <Card className="mb-4">
         <CardTitle className="mb-3">Buat event</CardTitle>
@@ -25,7 +25,7 @@ export default async function ClubEventsPage() {
         {events.map((e) => (
           <Link key={e.id} href={`/events/${e.id}`}>
             <Card className="mb-2">
-              <p className="font-semibold text-[#0b2a4a]">{e.title}</p>
+              <p className="font-semibold text-navy">{e.title}</p>
               <p className="text-xs text-slate-400">
                 {formatClub(e.startsAt, "d MMM yyyy HH:mm")} · {e._count.rsvps} RSVP ·{" "}
                 {e._count.photos} foto

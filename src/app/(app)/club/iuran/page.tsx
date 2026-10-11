@@ -29,7 +29,7 @@ export default async function ClubIuranPage() {
   return (
     <>
       <div className="mb-5">
-        <h1 className="text-2xl font-bold text-[#0b2a4a]">Iuran Admin</h1>
+        <h1 className="text-2xl font-bold text-navy">Iuran Admin</h1>
         <p className="text-sm text-slate-400">Buka periode & verifikasi bukti</p>
       </div>
 
@@ -39,7 +39,7 @@ export default async function ClubIuranPage() {
       </Card>
 
       <section className="mb-5">
-        <h2 className="mb-2 text-lg font-bold text-[#0b2a4a]">Antrian bukti</h2>
+        <h2 className="mb-2 text-lg font-bold text-navy">Antrian bukti</h2>
         <div className="space-y-2">
           {queue.length === 0 && (
             <Card>
@@ -50,7 +50,7 @@ export default async function ClubIuranPage() {
             <Card key={due.id} className="space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-[#0b2a4a]">
+                  <p className="font-medium text-navy">
                     {due.user.profile?.nickname ?? due.user.name}
                   </p>
                   <p className="text-xs text-slate-400">
@@ -77,7 +77,7 @@ export default async function ClubIuranPage() {
       </section>
 
       <section>
-        <h2 className="mb-2 text-lg font-bold text-[#0b2a4a]">Ringkasan periode</h2>
+        <h2 className="mb-2 text-lg font-bold text-navy">Ringkasan periode</h2>
         <div className="space-y-2">
           {periods.map((p) => {
             const verified = p.dues.filter((d) => d.status === "VERIFIED").length;
@@ -85,8 +85,8 @@ export default async function ClubIuranPage() {
             const unpaid = p.dues.filter((d) => d.status === "UNPAID" || d.status === "REJECTED").length;
             return (
               <Card key={p.id}>
-                <p className="font-semibold text-[#0b2a4a]">{p.label}</p>
-                <p className="text-sm text-[#2eb6ea]">{formatRp(p.amount)}</p>
+                <p className="font-semibold text-navy">{p.label}</p>
+                <p className="text-sm text-accent-ink">{formatRp(p.amount)}</p>
                 <p className="mt-1 text-xs text-slate-400">
                   Lunas {verified} · Menunggu {submitted} · Belum {unpaid} · Total{" "}
                   {p.dues.length}

@@ -52,11 +52,11 @@ export function ProfileForm({
           initials={nickname || "P"}
         />
         {photoPending && (
-          <p className="mt-2 text-xs font-semibold text-[#2eb6ea]">
+          <p className="mt-2 text-xs font-semibold text-accent-ink">
             Menyimpan foto…
           </p>
         )}
-        <h2 className="mt-4 text-2xl font-black tracking-tight text-[#0b2a4a]">
+        <h2 className="mt-4 text-2xl font-black tracking-tight text-navy">
           {nickname || "Player"}
         </h2>
         <p className="mt-0.5 text-sm text-slate-500">{initial.email}</p>
@@ -64,7 +64,7 @@ export function ProfileForm({
           <Badge
             className={
               initial.role === "ADMIN"
-                ? "bg-[#0b2a4a] text-white"
+                ? "bg-navy text-white"
                 : undefined
             }
           >

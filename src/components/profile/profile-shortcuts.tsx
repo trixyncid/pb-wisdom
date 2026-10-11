@@ -23,14 +23,14 @@ const linkRows = [
     label: "Directory",
     hint: "Cari & lihat anggota klub",
     icon: Users,
-    tone: "bg-[#e8f3fb] text-[#0b2a4a]",
+    tone: "bg-sand text-navy",
   },
   {
     href: "/profile/iuran",
     label: "Iuran saya",
     hint: "Status & upload bukti transfer",
     icon: Wallet,
-    tone: "bg-[#dff3fc] text-[#1ea5d8]",
+    tone: "bg-accent-soft text-accent-2",
   },
 ] as const;
 
@@ -53,7 +53,7 @@ function RowShell({
         {icon}
       </span>
       <span className="min-w-0 flex-1 text-left">
-        <span className="block text-sm font-bold text-[#0b2a4a]">{label}</span>
+        <span className="block text-sm font-bold text-navy">{label}</span>
         <span className="block text-xs text-slate-400">{hint}</span>
       </span>
       <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
@@ -91,14 +91,14 @@ export function ProfileShortcuts() {
 
   return (
     <div className="space-y-3">
-      <ul className="overflow-hidden rounded-[28px] border border-[#0b2a4a]/6 bg-white shadow-[0_12px_40px_rgba(11,42,74,0.06)]">
+      <ul className="overflow-hidden rounded-[28px] border border-navy/6 bg-white shadow-[0_12px_40px_rgba(14,44,60,0.06)]">
         {linkRows.map((row) => {
           const Icon = row.icon;
           return (
-            <li key={row.href} className="border-b border-[#0b2a4a]/6">
+            <li key={row.href} className="border-b border-navy/6">
               <Link
                 href={row.href}
-                className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#f7fbfe]"
+                className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-cream"
               >
                 <RowShell
                   icon={<Icon className="h-5 w-5" />}
@@ -115,7 +115,7 @@ export function ProfileShortcuts() {
           <button
             type="button"
             onClick={installApp}
-            className="flex w-full items-center gap-3 px-4 py-3.5 transition hover:bg-[#f7fbfe]"
+            className="flex w-full items-center gap-3 px-4 py-3.5 transition hover:bg-cream"
           >
             <RowShell
               icon={<Download className="h-5 w-5" />}
