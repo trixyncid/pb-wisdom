@@ -22,7 +22,7 @@ export function TrainingSessionForm() {
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          await upsertTrainingSessionAction({
+          const res = await upsertTrainingSessionAction({
             title,
             weekday: Number(weekday),
             startTime,
@@ -30,6 +30,10 @@ export function TrainingSessionForm() {
             venue,
             notes: notes || undefined,
           });
+          if (!res.ok) {
+            toast.error(res.error);
+            return;
+          }
           toast.success("Jadwal disimpan");
         });
       }}

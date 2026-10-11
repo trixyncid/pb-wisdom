@@ -22,7 +22,11 @@ export function FeeProofForm({ dueId }: { dueId: string }) {
         disabled={pending || !url}
         onClick={() =>
           start(async () => {
-            await submitFeeProofAction(dueId, url);
+            const res = await submitFeeProofAction(dueId, url);
+            if (!res.ok) {
+              toast.error(res.error);
+              return;
+            }
             toast.success("Bukti dikirim");
           })
         }

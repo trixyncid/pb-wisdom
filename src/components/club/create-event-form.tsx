@@ -24,7 +24,7 @@ export function CreateEventForm() {
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          await createEventAction({
+          const res = await createEventAction({
             title,
             type,
             startsAt,
@@ -33,6 +33,10 @@ export function CreateEventForm() {
             extraFee: extraFee ? Number(extraFee) : undefined,
             notes: notes || undefined,
           });
+          if (!res.ok) {
+            toast.error(res.error);
+            return;
+          }
           toast.success("Event dibuat");
           setTitle("");
         });

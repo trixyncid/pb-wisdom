@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireMember } from "@/lib/authz";
+import { ActionError, runAction } from "@/lib/action-result";
 import { prisma } from "@/lib/db";
 import type { MatchType } from "@prisma/client";
 import { demoActionResult } from "@/lib/demo/guard";
@@ -15,124 +16,128 @@ export async function logMatchAction(input: {
   eventId?: string;
   notes?: string;
 }) {
-  const __demo = demoActionResult();
-  if (__demo) return __demo;
-  const session = await requireMember();
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    const session = await requireMember();
 
-  const allIds = [...input.team1Ids, ...input.team2Ids];
-  if (new Set(allIds).size !== allIds.length) {
-    throw new Error("Duplicate players");
-  }
-  if (input.type === "SINGLES" && (input.team1Ids.length !== 1 || input.team2Ids.length !== 1)) {
-    throw new Error("Singles needs 1v1");
-  }
-  if (input.type === "DOUBLES" && (input.team1Ids.length !== 2 || input.team2Ids.length !== 2)) {
-    throw new Error("Doubles needs 2v2");
-  }
-  if (session.user.role !== "ADMIN" && !allIds.includes(session.user.id)) {
-    throw new Error("You can only log matches you played in");
-  }
-  const approvedPlayers = await prisma.user.count({
-    where: { id: { in: allIds }, role: { in: ["MEMBER", "ADMIN"] } },
-  });
-  if (approvedPlayers !== allIds.length) {
-    throw new Error("All players must be approved members");
-  }
+    const allIds = [...input.team1Ids, ...input.team2Ids];
+    if (new Set(allIds).size !== allIds.length) {
+      throw new ActionError("Pemain tidak boleh dobel");
+    }
+    if (input.type === "SINGLES" && (input.team1Ids.length !== 1 || input.team2Ids.length !== 1)) {
+      throw new ActionError("Single harus 1 lawan 1");
+    }
+    if (input.type === "DOUBLES" && (input.team1Ids.length !== 2 || input.team2Ids.length !== 2)) {
+      throw new ActionError("Double harus 2 lawan 2");
+    }
+    if (session.user.role !== "ADMIN" && !allIds.includes(session.user.id)) {
+      throw new ActionError("Kamu hanya bisa mencatat match yang kamu mainkan");
+    }
+    const approvedPlayers = await prisma.user.count({
+      where: { id: { in: allIds }, role: { in: ["MEMBER", "ADMIN"] } },
+    });
+    if (approvedPlayers !== allIds.length) {
+      throw new ActionError("Semua pemain harus member yang sudah disetujui");
+    }
 
-  const match = await prisma.match.create({
-    data: {
-      type: input.type,
-      score: input.score,
-      eventId: input.eventId || null,
-      notes: input.notes,
-      loggedById: session.user.id,
-      status: "PENDING",
-      players: {
-        create: [
-          ...input.team1Ids.map((userId) => ({
-            userId,
-            team: 1,
-            won: input.winnerTeam === 1,
-            confirmed: userId === session.user.id,
-          })),
-          ...input.team2Ids.map((userId) => ({
-            userId,
-            team: 2,
-            won: input.winnerTeam === 2,
-            confirmed: userId === session.user.id,
-          })),
-        ],
+    const match = await prisma.match.create({
+      data: {
+        type: input.type,
+        score: input.score,
+        eventId: input.eventId || null,
+        notes: input.notes,
+        loggedById: session.user.id,
+        status: "PENDING",
+        players: {
+          create: [
+            ...input.team1Ids.map((userId) => ({
+              userId,
+              team: 1,
+              won: input.winnerTeam === 1,
+              confirmed: userId === session.user.id,
+            })),
+            ...input.team2Ids.map((userId) => ({
+              userId,
+              team: 2,
+              won: input.winnerTeam === 2,
+              confirmed: userId === session.user.id,
+            })),
+          ],
+        },
       },
-    },
-    include: { players: true },
+      include: { players: true },
+    });
+
+    const others = allIds.filter((id) => id !== session.user.id);
+    if (others.length) {
+      await prisma.notification.createMany({
+        data: others.map((userId) => ({
+          userId,
+          type: "MATCH" as const,
+          title: "Konfirmasi hasil match",
+          body: `Skor: ${input.score}. Buka tab Play untuk konfirmasi.`,
+          href: "/play",
+        })),
+      });
+    }
+
+    // Auto-confirm if admin logged or all players already confirmed (logger only)
+    const confirmedCount = match.players.filter((p) => p.confirmed).length;
+    if (session.user.role === "ADMIN" || confirmedCount === match.players.length) {
+      await prisma.match.update({
+        where: { id: match.id },
+        data: { status: "CONFIRMED" },
+      });
+      await prisma.matchPlayer.updateMany({
+        where: { matchId: match.id },
+        data: { confirmed: true },
+      });
+    }
+
+    revalidatePath("/play");
+    revalidatePath("/");
+    return { id: match.id };
   });
-
-  const others = allIds.filter((id) => id !== session.user.id);
-  if (others.length) {
-    await prisma.notification.createMany({
-      data: others.map((userId) => ({
-        userId,
-        type: "MATCH" as const,
-        title: "Konfirmasi hasil match",
-        body: `Skor: ${input.score}. Buka tab Play untuk konfirmasi.`,
-        href: "/play",
-      })),
-    });
-  }
-
-  // Auto-confirm if admin logged or all players already confirmed (logger only)
-  const confirmedCount = match.players.filter((p) => p.confirmed).length;
-  if (session.user.role === "ADMIN" || confirmedCount === match.players.length) {
-    await prisma.match.update({
-      where: { id: match.id },
-      data: { status: "CONFIRMED" },
-    });
-    await prisma.matchPlayer.updateMany({
-      where: { matchId: match.id },
-      data: { confirmed: true },
-    });
-  }
-
-  revalidatePath("/play");
-  revalidatePath("/");
-  return { ok: true, id: match.id };
 }
 
 export async function confirmMatchAction(matchId: string, accept: boolean) {
-  const __demo = demoActionResult();
-  if (__demo) return __demo;
-  const session = await requireMember();
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    const session = await requireMember();
 
-  const player = await prisma.matchPlayer.findUnique({
-    where: {
-      matchId_userId: { matchId, userId: session.user.id },
-    },
-  });
-  if (!player) throw new Error("Not a player in this match");
-
-  if (!accept) {
-    await prisma.match.update({
-      where: { id: matchId },
-      data: { status: "DISPUTED" },
+    const player = await prisma.matchPlayer.findUnique({
+      where: {
+        matchId_userId: { matchId, userId: session.user.id },
+      },
     });
+    if (!player) throw new ActionError("Kamu bukan pemain di match ini");
+
+    if (!accept) {
+      await prisma.match.update({
+        where: { id: matchId },
+        data: { status: "DISPUTED" },
+      });
+      revalidatePath("/play");
+      return {};
+    }
+
+    await prisma.matchPlayer.update({
+      where: { id: player.id },
+      data: { confirmed: true },
+    });
+
+    const players = await prisma.matchPlayer.findMany({ where: { matchId } });
+    if (players.every((p) => p.confirmed)) {
+      await prisma.match.update({
+        where: { id: matchId },
+        data: { status: "CONFIRMED" },
+      });
+    }
+
     revalidatePath("/play");
-    return { ok: true };
-  }
-
-  await prisma.matchPlayer.update({
-    where: { id: player.id },
-    data: { confirmed: true },
+    revalidatePath("/");
+    return {};
   });
-
-  const players = await prisma.matchPlayer.findMany({ where: { matchId } });
-  if (players.every((p) => p.confirmed)) {
-    await prisma.match.update({
-      where: { id: matchId },
-      data: { status: "CONFIRMED" },
-    });
-  }
-
-  revalidatePath("/play");
-  revalidatePath("/");
-  return { ok: true };
 }

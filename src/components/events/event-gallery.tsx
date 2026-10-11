@@ -35,7 +35,11 @@ export function EventGallery({
   function upload() {
     if (!url.trim()) return;
     start(async () => {
-      await addEventPhotoAction(eventId, url.trim(), caption || undefined);
+      const res = await addEventPhotoAction(eventId, url.trim(), caption || undefined);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       setUrl("");
       setCaption("");
       toast.success("Foto ditambahkan");
@@ -44,7 +48,11 @@ export function EventGallery({
 
   function remove(id: string) {
     start(async () => {
-      await deleteEventPhotoAction(id);
+      const res = await deleteEventPhotoAction(id);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       toast.success("Foto dihapus");
     });
   }

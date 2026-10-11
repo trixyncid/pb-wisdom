@@ -17,7 +17,11 @@ export function AnnouncementForm() {
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          await createAnnouncementAction(title, body);
+          const res = await createAnnouncementAction(title, body);
+          if (!res.ok) {
+            toast.error(res.error);
+            return;
+          }
           setTitle("");
           setBody("");
           toast.success("Pengumuman dikirim");

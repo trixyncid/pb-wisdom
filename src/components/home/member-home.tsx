@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import {
   CalendarDays,
@@ -15,6 +14,7 @@ import { cn, weekdayLabel } from "@/lib/utils";
 import type { LeaderboardRow } from "@/lib/stats";
 import type { FeeStatus } from "@prisma/client";
 import { FloatingShuttle } from "@/components/home/floating-shuttle";
+import { formatClub } from "@/lib/time";
 
 function FormDots({ form }: { form: ("W" | "L")[] }) {
   if (form.length === 0) return null;
@@ -138,7 +138,7 @@ export function MemberHome({
                   <span className="inline-flex items-center gap-1.5">
                     <CalendarDays className="size-3.5" />
                     {weekdayLabel(occurrence.weekday)} ·{" "}
-                    {format(occurrence.date, "d MMM", { locale: localeId })}
+                    {formatClub(occurrence.date, "d MMM", { locale: localeId })}
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <MapPin className="size-3.5" />

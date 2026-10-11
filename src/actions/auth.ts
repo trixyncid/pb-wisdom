@@ -6,67 +6,70 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/authz";
+import { ActionError, runAction } from "@/lib/action-result";
 import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
 import { isDemoMode } from "@/lib/demo/mode";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
-  name: z.string().trim().min(2).max(80),
-  email: z.string().email().max(254),
-  password: z.string().min(8).max(200),
+  name: z.string().trim().min(2, "Nama minimal 2 karakter").max(80, "Nama terlalu panjang"),
+  email: z.string().email("Email tidak valid").max(254),
+  password: z.string().min(8, "Password minimal 8 karakter").max(200, "Password terlalu panjang"),
   inviteCode: z.string().max(40).optional(),
 });
 
 export async function registerAction(input: z.infer<typeof registerSchema>) {
-  const __demo = demoActionResult();
-  if (__demo) return __demo;
-  if (!rateLimit(`register:ip:${clientIp(await headers())}`, 5, 60 * 60 * 1000)) {
-    return { ok: false as const, error: "Too many attempts, try again later" };
-  }
-  const data = registerSchema.parse(input);
-  const email = data.email.toLowerCase();
-
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    return { ok: false as const, error: "Email already registered" };
-  }
-
-  let autoApprove = false;
-  if (data.inviteCode) {
-    const invite = await prisma.invite.findUnique({
-      where: { code: data.inviteCode.toUpperCase() },
-    });
-    if (!invite || invite.remainingUses <= 0) {
-      return { ok: false as const, error: "Invalid invite code" };
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    if (!rateLimit(`register:ip:${clientIp(await headers())}`, 5, 60 * 60 * 1000)) {
+      throw new ActionError("Terlalu banyak percobaan, coba lagi nanti");
     }
-    if (invite.expiresAt && invite.expiresAt < new Date()) {
-      return { ok: false as const, error: "Invite expired" };
-    }
-    autoApprove = invite.autoApprove;
-    await prisma.invite.update({
-      where: { id: invite.id },
-      data: { remainingUses: { decrement: 1 } },
-    });
-  }
+    const data = registerSchema.parse(input);
+    const email = data.email.toLowerCase();
 
-  const passwordHash = await hash(data.password, 10);
-  await prisma.user.create({
-    data: {
-      email,
-      name: data.name,
-      passwordHash,
-      role: autoApprove ? "MEMBER" : "PENDING",
-      profile: {
-        create: {
-          nickname: data.name.split(" ")[0],
-          imageUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(data.name)}`,
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new ActionError("Email sudah terdaftar");
+    }
+
+    let autoApprove = false;
+    if (data.inviteCode) {
+      const invite = await prisma.invite.findUnique({
+        where: { code: data.inviteCode.toUpperCase() },
+      });
+      if (!invite || invite.remainingUses <= 0) {
+        throw new ActionError("Kode undangan tidak valid");
+      }
+      if (invite.expiresAt && invite.expiresAt < new Date()) {
+        throw new ActionError("Kode undangan sudah kedaluwarsa");
+      }
+      autoApprove = invite.autoApprove;
+      await prisma.invite.update({
+        where: { id: invite.id },
+        data: { remainingUses: { decrement: 1 } },
+      });
+    }
+
+    const passwordHash = await hash(data.password, 10);
+    await prisma.user.create({
+      data: {
+        email,
+        name: data.name,
+        passwordHash,
+        role: autoApprove ? "MEMBER" : "PENDING",
+        profile: {
+          create: {
+            nickname: data.name.split(" ")[0],
+            imageUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(data.name)}`,
+          },
         },
       },
-    },
-  });
+    });
 
-  return { ok: true as const };
+    return {};
+  });
 }
 
 export async function updateProfileAction(input: {
@@ -75,106 +78,114 @@ export async function updateProfileAction(input: {
   imageUrl?: string;
   locale?: string;
 }) {
-  const __demo = demoActionResult();
-  if (__demo) return __demo;
-  const session = await requireUser();
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    const session = await requireUser();
 
-  await prisma.memberProfile.upsert({
-    where: { userId: session.user.id },
-    create: {
-      userId: session.user.id,
-      nickname: input.nickname,
-      phone: input.phone,
-      imageUrl: input.imageUrl,
-    },
-    update: {
-      nickname: input.nickname,
-      phone: input.phone,
-      ...(input.imageUrl ? { imageUrl: input.imageUrl } : {}),
-    },
+    await prisma.memberProfile.upsert({
+      where: { userId: session.user.id },
+      create: {
+        userId: session.user.id,
+        nickname: input.nickname,
+        phone: input.phone,
+        imageUrl: input.imageUrl,
+      },
+      update: {
+        nickname: input.nickname,
+        phone: input.phone,
+        ...(input.imageUrl ? { imageUrl: input.imageUrl } : {}),
+      },
+    });
+
+    if (input.locale) {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: {
+          locale: input.locale,
+          name: input.nickname,
+          ...(input.imageUrl ? { image: input.imageUrl } : {}),
+        },
+      });
+    } else {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: {
+          name: input.nickname,
+          ...(input.imageUrl ? { image: input.imageUrl } : {}),
+        },
+      });
+    }
+
+    revalidatePath("/profile");
+    revalidatePath("/");
+    revalidatePath("/notifications");
+    return {};
   });
-
-  if (input.locale) {
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        locale: input.locale,
-        name: input.nickname,
-        ...(input.imageUrl ? { image: input.imageUrl } : {}),
-      },
-    });
-  } else {
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        name: input.nickname,
-        ...(input.imageUrl ? { image: input.imageUrl } : {}),
-      },
-    });
-  }
-
-  revalidatePath("/profile");
-  revalidatePath("/");
-  revalidatePath("/notifications");
-  return { ok: true };
 }
 
 export async function approveMemberAction(userId: string, approve: boolean) {
-  const __demo = demoActionResult();
-  if (__demo) return __demo;
-  await requireAdmin();
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    await requireAdmin();
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: { role: approve ? "MEMBER" : "REJECTED" },
-  });
-
-  if (approve) {
-    await prisma.notification.create({
-      data: {
-        userId,
-        type: "SYSTEM",
-        title: "Welcome to PB Wisdom!",
-        body: "Akunmu sudah disetujui. Selamat bergabung.",
-        href: "/",
-      },
+    await prisma.user.update({
+      where: { id: userId },
+      data: { role: approve ? "MEMBER" : "REJECTED" },
     });
-  }
 
-  revalidatePath("/club");
-  revalidatePath("/club/members");
-  return { ok: true };
+    if (approve) {
+      await prisma.notification.create({
+        data: {
+          userId,
+          type: "SYSTEM",
+          title: "Welcome to PB Wisdom!",
+          body: "Akunmu sudah disetujui. Selamat bergabung.",
+          href: "/",
+        },
+      });
+    }
+
+    revalidatePath("/club");
+    revalidatePath("/club/members");
+    return {};
+  });
 }
 
 export async function deactivateMemberAction(userId: string, active: boolean) {
-  const __demo = demoActionResult();
-  if (__demo) return __demo;
-  await requireAdmin();
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    await requireAdmin();
 
-  await prisma.memberProfile.update({
-    where: { userId },
-    data: { status: active ? "ACTIVE" : "INACTIVE" },
+    await prisma.memberProfile.update({
+      where: { userId },
+      data: { status: active ? "ACTIVE" : "INACTIVE" },
+    });
+
+    revalidatePath("/club/members");
+    return {};
   });
-
-  revalidatePath("/club/members");
-  return { ok: true };
 }
 
 export async function regenerateInviteAction() {
-  if (isDemoMode()) {
-    return { ok: true as const, code: "WISDOM2026" };
-  }
-  const session = await requireAdmin();
+  return runAction(async () => {
+    if (isDemoMode()) {
+      return { code: "WISDOM2026" };
+    }
+    const session = await requireAdmin();
 
-  const code = `WISDOM${randomBytes(4).toString("hex").toUpperCase()}`;
-  const invite = await prisma.invite.create({
-    data: {
-      code,
-      type: "CLUB",
-      remainingUses: 50,
-      createdById: session.user.id,
-    },
+    const code = `WISDOM${randomBytes(4).toString("hex").toUpperCase()}`;
+    const invite = await prisma.invite.create({
+      data: {
+        code,
+        type: "CLUB",
+        remainingUses: 50,
+        createdById: session.user.id,
+      },
+    });
+    revalidatePath("/club");
+    return { code: invite.code };
   });
-  revalidatePath("/club");
-  return { ok: true, code: invite.code };
 }

@@ -1,17 +1,10 @@
 import { prisma } from "@/lib/db";
 import { isDemoMode } from "@/lib/demo/mode";
+import { nextDateForWeekday } from "@/lib/time";
 
 // Background jobs. These live outside "use server" files on purpose: anything
 // exported from an action file becomes a public endpoint, and these have no
 // caller to authenticate. They run from the cron route or from server code.
-
-export function nextDateForWeekday(weekday: number) {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  const diff = (weekday + 7 - d.getDay()) % 7 || 7;
-  d.setDate(d.getDate() + diff);
-  return d;
-}
 
 export async function ensureUpcomingOccurrences() {
   if (isDemoMode()) return;

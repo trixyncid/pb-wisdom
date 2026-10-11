@@ -15,7 +15,11 @@ export function VerifyFeeButtons({ dueId }: { dueId: string }) {
         disabled={pending}
         onClick={() =>
           start(async () => {
-            await verifyFeeAction(dueId, true);
+            const res = await verifyFeeAction(dueId, true);
+            if (!res.ok) {
+              toast.error(res.error);
+              return;
+            }
             toast.success("Diverifikasi");
           })
         }
@@ -28,7 +32,11 @@ export function VerifyFeeButtons({ dueId }: { dueId: string }) {
         disabled={pending}
         onClick={() =>
           start(async () => {
-            await verifyFeeAction(dueId, false, "Bukti tidak jelas");
+            const res = await verifyFeeAction(dueId, false, "Bukti tidak jelas");
+            if (!res.ok) {
+              toast.error(res.error);
+              return;
+            }
             toast.message("Ditolak");
           })
         }

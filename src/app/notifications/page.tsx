@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { markNotificationsReadAction } from "@/actions/ops";
+import { isDemoMode } from "@/lib/demo/mode";
 
 export default async function NotificationsPage() {
   const session = await auth();
@@ -19,7 +19,14 @@ export default async function NotificationsPage() {
     take: 50,
   });
 
-  await markNotificationsReadAction().catch(() => null);
+  // Mark as read directly: an action here would call revalidatePath during
+  // render, which Next rejects. The list above was fetched before this update.
+  if (!isDemoMode()) {
+    await prisma.notification.updateMany({
+      where: { userId: session.user.id, read: false },
+      data: { read: true },
+    });
+  }
 
   return (
     <AppShell>

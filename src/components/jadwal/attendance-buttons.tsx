@@ -17,7 +17,11 @@ export function AttendanceButtons({
 
   function set(status: AttendanceStatus) {
     start(async () => {
-      await setAttendanceAction(occurrenceId, status);
+      const res = await setAttendanceAction(occurrenceId, status);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       toast.success("RSVP tersimpan");
     });
   }

@@ -12,7 +12,17 @@ const alwaysPublic = [
 
 const softPublic = ["/", "/jadwal"];
 
-export async function middleware(req: NextRequest) {
+// Auth.js names the session cookie "__Secure-authjs.session-token" on HTTPS
+// and "authjs.session-token" otherwise. getToken() defaults to the plain name,
+// so mirror Auth.js's own rule: AUTH_URL's protocol, else X-Forwarded-Proto.
+function usesSecureCookie(req: NextRequest) {
+  const authUrl = process.env.AUTH_URL;
+  if (authUrl) return authUrl.startsWith("https:");
+  const proto = req.headers.get("x-forwarded-proto") ?? req.nextUrl.protocol;
+  return proto.replace(/:$/, "") === "https";
+}
+
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (
@@ -51,6 +61,7 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({
     req,
     secret: process.env.AUTH_SECRET,
+    secureCookie: usesSecureCookie(req),
   });
 
   const isSoftPublic = softPublic.some(
@@ -67,7 +78,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (token.role === "REJECTED") {
+  if (token.role === "REJECTED" && pathname !== "/rejected") {
     const url = req.nextUrl.clone();
     url.pathname = "/rejected";
     return NextResponse.redirect(url);
@@ -105,6 +116,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Exclude all /_next (incl. HMR websocket) — middleware breaks the WS handshake
+  // Exclude all /_next (incl. HMR websocket) — the proxy breaks the WS handshake
   matcher: ["/((?!_next/|icons/|brand/|.*\\..*).*)"],
 };

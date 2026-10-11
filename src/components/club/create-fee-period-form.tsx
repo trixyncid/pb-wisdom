@@ -22,12 +22,16 @@ export function CreateFeePeriodForm() {
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
-          await createFeePeriodAction({
+          const res = await createFeePeriodAction({
             label,
             amount: Number(amount),
             dueDate,
             paymentInstructions: instructions,
           });
+          if (!res.ok) {
+            toast.error(res.error);
+            return;
+          }
           toast.success("Periode iuran dibuka");
         });
       }}

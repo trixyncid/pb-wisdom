@@ -25,7 +25,11 @@ export function MemberAdminActions({
           disabled={pending}
           onClick={() =>
             start(async () => {
-              await approveMemberAction(userId, true);
+              const res = await approveMemberAction(userId, true);
+              if (!res.ok) {
+                toast.error(res.error);
+                return;
+              }
               toast.success("Member disetujui");
             })
           }
@@ -38,7 +42,11 @@ export function MemberAdminActions({
           disabled={pending}
           onClick={() =>
             start(async () => {
-              await approveMemberAction(userId, false);
+              const res = await approveMemberAction(userId, false);
+              if (!res.ok) {
+                toast.error(res.error);
+                return;
+              }
               toast.message("Ditolak");
             })
           }
@@ -58,7 +66,11 @@ export function MemberAdminActions({
       disabled={pending}
       onClick={() =>
         start(async () => {
-          await deactivateMemberAction(userId, status !== "ACTIVE");
+          const res = await deactivateMemberAction(userId, status !== "ACTIVE");
+          if (!res.ok) {
+            toast.error(res.error);
+            return;
+          }
           toast.success(status === "ACTIVE" ? "Dinonaktifkan" : "Diaktifkan");
         })
       }

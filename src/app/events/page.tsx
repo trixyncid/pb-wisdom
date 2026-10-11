@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { Images } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { AppShell } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { formatClub } from "@/lib/time";
 
 export default async function EventsPage() {
   const events = await prisma.event.findMany({
@@ -57,7 +57,7 @@ export default async function EventsPage() {
                     </div>
                     <p className="font-semibold text-[#0b2a4a]">{event.title}</p>
                     <p className="text-xs text-[#2eb6ea]">
-                      {format(event.startsAt, "d MMM yyyy · HH:mm", {
+                      {formatClub(event.startsAt, "d MMM yyyy · HH:mm", {
                         locale: localeId,
                       })}
                     </p>

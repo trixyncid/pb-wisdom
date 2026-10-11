@@ -21,6 +21,10 @@ export function EventActions({
   function set(status: RsvpStatus) {
     start(async () => {
       const res = await setEventRsvpAction(eventId, status);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       toast.success(
         res.status === "WAITLIST" ? "Masuk waitlist" : "RSVP tersimpan",
       );

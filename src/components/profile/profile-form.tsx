@@ -33,12 +33,16 @@ export function ProfileForm({
   function savePhoto(dataUrl: string) {
     setImageUrl(dataUrl);
     startPhoto(async () => {
-      await updateProfileAction({
+      const res = await updateProfileAction({
         nickname,
         phone: phone === "+62" || phone.length <= 3 ? "" : phone,
         imageUrl: dataUrl,
         locale,
       });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       toast.success("Foto profil diperbarui");
     });
   }
@@ -78,12 +82,16 @@ export function ProfileForm({
         onSubmit={(e) => {
           e.preventDefault();
           start(async () => {
-            await updateProfileAction({
+            const res = await updateProfileAction({
               nickname,
               phone: phone === "+62" || phone.length <= 3 ? "" : phone,
               imageUrl: imageUrl || undefined,
               locale,
             });
+            if (!res.ok) {
+              toast.error(res.error);
+              return;
+            }
             toast.success("Profil disimpan");
           });
         }}

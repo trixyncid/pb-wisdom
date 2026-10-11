@@ -1,6 +1,7 @@
 import type { Session } from "next-auth";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { ActionError } from "@/lib/action-result";
 
 // Server actions are reachable by a direct POST from any page, so the proxy
 // never protects them. Every action must call one of these guards itself.
@@ -11,7 +12,7 @@ type AuthedSession = Session & { user: NonNullable<Session["user"]> };
 export async function requireUser(): Promise<AuthedSession> {
   const session = await auth();
   if (!session?.user?.id || session.user.role === "REJECTED") {
-    throw new Error("Unauthorized");
+    throw new ActionError("Silakan login terlebih dahulu");
   }
   return session as AuthedSession;
 }
@@ -20,14 +21,14 @@ export async function requireUser(): Promise<AuthedSession> {
 export async function requireMember(): Promise<AuthedSession> {
   const session = await requireUser();
   if (session.user.role !== "MEMBER" && session.user.role !== "ADMIN") {
-    throw new Error("Forbidden");
+    throw new ActionError("Kamu tidak punya akses untuk ini");
   }
   return session;
 }
 
 export async function requireAdmin(): Promise<AuthedSession> {
   const session = await requireUser();
-  if (session.user.role !== "ADMIN") throw new Error("Forbidden");
+  if (session.user.role !== "ADMIN") throw new ActionError("Kamu tidak punya akses untuk ini");
   return session;
 }
 

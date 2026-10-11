@@ -15,7 +15,11 @@ export function ConfirmMatchButtons({ matchId }: { matchId: string }) {
         disabled={pending}
         onClick={() =>
           start(async () => {
-            await confirmMatchAction(matchId, true);
+            const res = await confirmMatchAction(matchId, true);
+            if (!res.ok) {
+              toast.error(res.error);
+              return;
+            }
             toast.success("Match dikonfirmasi");
           })
         }
@@ -28,7 +32,11 @@ export function ConfirmMatchButtons({ matchId }: { matchId: string }) {
         disabled={pending}
         onClick={() =>
           start(async () => {
-            await confirmMatchAction(matchId, false);
+            const res = await confirmMatchAction(matchId, false);
+            if (!res.ok) {
+              toast.error(res.error);
+              return;
+            }
             toast.message("Match ditandai disputed");
           })
         }

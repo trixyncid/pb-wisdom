@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -9,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EventActions } from "@/components/events/event-actions";
 import { EventGallery } from "@/components/events/event-gallery";
+import { formatClub } from "@/lib/time";
 
 export default async function EventDetailPage({
   params,
@@ -43,7 +43,7 @@ export default async function EventDetailPage({
         <Badge>{event.type}</Badge>
         <h1 className="text-2xl font-bold text-[#0b2a4a]">{event.title}</h1>
         <p className="text-sm text-[#2eb6ea]">
-          {format(event.startsAt, "EEEE, d MMM yyyy · HH:mm", {
+          {formatClub(event.startsAt, "EEEE, d MMM yyyy · HH:mm", {
             locale: localeId,
           })}
         </p>

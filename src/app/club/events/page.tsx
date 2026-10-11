@@ -1,10 +1,10 @@
 import { requireAdminPage } from "@/lib/authz";
 import Link from "next/link";
-import { format } from "date-fns";
 import { prisma } from "@/lib/db";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardTitle } from "@/components/ui/card";
 import { CreateEventForm } from "@/components/club/create-event-form";
+import { formatClub } from "@/lib/time";
 
 export default async function ClubEventsPage() {
   await requireAdminPage();
@@ -28,7 +28,7 @@ export default async function ClubEventsPage() {
             <Card className="mb-2">
               <p className="font-semibold text-[#0b2a4a]">{e.title}</p>
               <p className="text-xs text-slate-400">
-                {format(e.startsAt, "d MMM yyyy HH:mm")} · {e._count.rsvps} RSVP ·{" "}
+                {formatClub(e.startsAt, "d MMM yyyy HH:mm")} · {e._count.rsvps} RSVP ·{" "}
                 {e._count.photos} foto
               </p>
             </Card>

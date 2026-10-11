@@ -28,20 +28,20 @@ export function LogMatchForm({
   function submit(e: React.FormEvent) {
     e.preventDefault();
     start(async () => {
-      try {
-        const team1Ids = type === "SINGLES" ? [t1a] : [t1a, t1b].filter(Boolean);
-        const team2Ids = type === "SINGLES" ? [t2a] : [t2a, t2b].filter(Boolean);
-        await logMatchAction({
-          type,
-          score,
-          team1Ids,
-          team2Ids,
-          winnerTeam: winner,
-        });
-        toast.success("Match dicatat");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Gagal");
+      const team1Ids = type === "SINGLES" ? [t1a] : [t1a, t1b].filter(Boolean);
+      const team2Ids = type === "SINGLES" ? [t2a] : [t2a, t2b].filter(Boolean);
+      const res = await logMatchAction({
+        type,
+        score,
+        team1Ids,
+        team2Ids,
+        winnerTeam: winner,
+      });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
       }
+      toast.success("Match dicatat");
     });
   }
 

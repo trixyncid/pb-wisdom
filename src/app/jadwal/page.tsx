@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { MapPin, Share2, Users } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -10,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { AttendanceButtons } from "@/components/jadwal/attendance-buttons";
 import { ensureUpcomingOccurrences } from "@/lib/jobs";
 import { JadwalRsvpGate } from "@/components/jadwal/rsvp-gate";
+import { formatClub, startOfClubTodayKey } from "@/lib/time";
 
 export default async function JadwalPage() {
   const session = await auth();
@@ -18,7 +18,7 @@ export default async function JadwalPage() {
   const occurrences = await prisma.trainingOccurrence.findMany({
     where: {
       date: {
-        gte: new Date(new Date().setDate(new Date().getDate() - 1)),
+        gte: startOfClubTodayKey(),
       },
     },
     orderBy: { date: "asc" },
@@ -71,7 +71,7 @@ export default async function JadwalPage() {
                   </p>
                   <p className="text-sm font-semibold text-[#2eb6ea]">
                     {weekdayLabel(occ.session.weekday)} ·{" "}
-                    {format(occ.date, "EEEE, d MMM yyyy", { locale: localeId })}
+                    {formatClub(occ.date, "EEEE, d MMM yyyy", { locale: localeId })}
                   </p>
                   <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
                     <MapPin className="h-3.5 w-3.5" />

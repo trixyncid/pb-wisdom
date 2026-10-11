@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import {
   CalendarDays,
@@ -23,6 +22,7 @@ import { HomeGuestCta } from "@/components/home/home-guest-cta";
 import { QuickActions } from "@/components/home/quick-actions";
 import { FloatingShuttle } from "@/components/home/floating-shuttle";
 import { MemberHome } from "@/components/home/member-home";
+import { formatClub, startOfClubTodayKey } from "@/lib/time";
 
 export default async function HomePage() {
   const session = await auth();
@@ -54,7 +54,7 @@ export default async function HomePage() {
         })
       : Promise.resolve(null),
     prisma.trainingOccurrence.findFirst({
-      where: { date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+      where: { date: { gte: startOfClubTodayKey() } },
       orderBy: { date: "asc" },
       include: {
         session: true,
@@ -206,7 +206,7 @@ export default async function HomePage() {
                     <p className="flex items-center gap-1 text-sm text-sky-100">
                       <CalendarDays className="h-4 w-4" />
                       {weekdayLabel(occurrence.session.weekday)} ·{" "}
-                      {format(occurrence.date, "d MMM", { locale: localeId })} ·{" "}
+                      {formatClub(occurrence.date, "d MMM", { locale: localeId })} ·{" "}
                       {occurrence.session.startTime}
                     </p>
                     <p className="flex items-center gap-1 text-xs text-sky-200/80">
@@ -344,7 +344,7 @@ export default async function HomePage() {
                           {m.type}
                         </Badge>
                         <span className="text-[11px] text-slate-400">
-                          {format(m.playedAt, "d MMM", { locale: localeId })}
+                          {formatClub(m.playedAt, "d MMM", { locale: localeId })}
                         </span>
                       </div>
                       <p className="mt-1 truncate text-sm font-bold text-[#0b2a4a]">

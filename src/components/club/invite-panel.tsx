@@ -38,6 +38,10 @@ export function InvitePanel({ code }: { code: string }) {
           onClick={() =>
             start(async () => {
               const res = await regenerateInviteAction();
+              if (!res.ok) {
+                toast.error(res.error);
+                return;
+              }
               toast.success(`Kode baru: ${res.code}`);
             })
           }
