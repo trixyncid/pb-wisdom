@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { formatPhone } from "@/lib/phone";
 
 export type DirectoryMember = {
   id: string;
@@ -105,7 +106,7 @@ export function DirectoryBrowser({
                 {m.nickname}
               </p>
               <p className="truncate text-[11px] text-slate-400">
-                {m.phone ?? m.email}
+                {m.phone ? formatPhone(m.phone) : m.email}
               </p>
             </div>
             {m.role === "ADMIN" && <Badge>Admin</Badge>}

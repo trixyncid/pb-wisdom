@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
 import { isDemoMode } from "@/lib/demo/mode";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { normalizePhone } from "@/lib/phone";
 
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Nama minimal 2 karakter").max(80, "Nama terlalu panjang"),
@@ -89,7 +90,7 @@ export async function registerAction(input: z.infer<typeof registerSchema>) {
 // The cap leaves room for older browsers that fall back to JPEG.
 const profileSchema = z.object({
   nickname: z.string().trim().min(1, "Nickname wajib diisi").max(40, "Nickname terlalu panjang"),
-  phone: z.string().max(20).optional(),
+  phone: z.string().max(24).optional().transform((v) => (v ? normalizePhone(v) || undefined : undefined)),
   imageUrl: z
     .string()
     .max(200_000, "Foto terlalu besar")

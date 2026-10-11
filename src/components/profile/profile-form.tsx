@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SquareImageUpload } from "@/components/profile/square-image-upload";
 import { PhoneInput } from "@/components/profile/phone-input";
+import { normalizePhone } from "@/lib/phone";
 
 export function ProfileForm({
   initial,
@@ -22,7 +23,8 @@ export function ProfileForm({
   };
 }) {
   const [nickname, setNickname] = useState(initial.nickname);
-  const [phone, setPhone] = useState(initial.phone || "+62");
+  // Normalized up front so a stored "+620812…" is saved back without the 0.
+  const [phone, setPhone] = useState(() => normalizePhone(initial.phone) || "+62");
   const [imageUrl, setImageUrl] = useState(initial.imageUrl);
   const [pending, start] = useTransition();
   const [photoPending, startPhoto] = useTransition();
@@ -92,8 +94,8 @@ export function ProfileForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label>WhatsApp / Phone</Label>
-          <PhoneInput value={phone} onChange={setPhone} />
+          <Label htmlFor="profile-phone">WhatsApp / Phone</Label>
+          <PhoneInput id="profile-phone" value={phone} onChange={setPhone} />
         </div>
 
         <Button type="submit" disabled={pending} className="mt-1 w-full">

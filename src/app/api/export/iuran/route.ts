@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { formatPhone } from "@/lib/phone";
 
 // Excel/Sheets run cells starting with these as formulas (e.g. a nickname of
 // =HYPERLINK(...)); quoting does not stop it, a leading apostrophe does.
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
     ...period.dues.map((d) => [
       d.user.profile?.nickname ?? "",
       d.user.email,
-      d.user.profile?.phone ?? "",
+      formatPhone(d.user.profile?.phone),
       String(period.amount),
       d.status,
       d.submittedAt?.toISOString() ?? "",

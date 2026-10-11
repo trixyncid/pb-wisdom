@@ -10,6 +10,7 @@ import { useUiStore } from "@/lib/store";
 import { safeRedirectPath } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import Image from "next/image";
 import shuttleImg from "@/assets/3d/shuttle.png";
@@ -107,18 +108,21 @@ export function AuthModal() {
 
             <form onSubmit={onSubmit} className="space-y-3">
               <div className="space-y-1">
-                <Label>Email</Label>
+                <Label htmlFor="auth-email">Email</Label>
                 <Input
+                  id="auth-email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
               <div className="space-y-1">
-                <Label>Password</Label>
-                <Input
-                  type="password"
+                <Label htmlFor="auth-password">Password</Label>
+                <PasswordInput
+                  id="auth-password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
