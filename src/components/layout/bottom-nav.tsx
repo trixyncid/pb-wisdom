@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@prisma/client";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -26,13 +26,15 @@ type Tab = {
   icon: typeof Home;
   public?: boolean;
   match?: "exact" | "prefix";
+  /** The raised center button (Play). */
+  featured?: boolean;
 };
 
 const memberTabs: Tab[] = [
   { href: "/", label: "Home", icon: Home, public: true, match: "exact" },
   { href: "/jadwal", label: "Jadwal", icon: CalendarDays, public: true },
+  { href: "/play", label: "Play", icon: Swords, public: false, featured: true },
   { href: "/events", label: "Events", icon: Trophy, public: false },
-  { href: "/play", label: "Play", icon: Swords, public: false },
   { href: "/profile", label: "Profile", icon: UserRound, public: false },
 ];
 
@@ -75,10 +77,10 @@ export function BottomNav({ role }: { role: Role | null }) {
   }
 
   const onAdminBar = inAdminArea && isAdmin;
-  // Labels fit next to the active icon with up to 5 tabs on a 375px phone.
-  const showLabel = tabs.length <= 5;
-  const spring = { type: "spring", stiffness: 420, damping: 34 } as const;
+  const spring = { type: "spring", stiffness: 460, damping: 34 } as const;
 
+  // Icons only, no labels: every tab keeps its size, so the bar never shifts
+  // and Play stays exactly in the middle.
   return (
     <>
       <nav
@@ -90,56 +92,62 @@ export function BottomNav({ role }: { role: Role | null }) {
             Club Admin
           </p>
         )}
-        <ul className="flex max-w-full items-center gap-[clamp(4px,1.6vw,8px)] rounded-full border border-white/70 bg-white/70 p-[clamp(5px,1.6vw,8px)] shadow-[0_20px_48px_rgba(14,44,60,0.2)] backdrop-blur-xl">
+        <ul className="flex items-center gap-[clamp(6px,2.2vw,12px)] rounded-full border border-white/70 bg-white/75 p-[clamp(6px,1.8vw,8px)] shadow-[0_20px_48px_rgba(14,44,60,0.2)] backdrop-blur-xl">
           {tabs.map((tab) => {
             const active = isActive(pathname, tab);
             const Icon = tab.icon;
+            if (tab.featured) {
+              return (
+                <li key={tab.href} className="relative">
+                  <Link
+                    href={tab.href}
+                    onClick={(e) => go(tab, e)}
+                    aria-label={tab.label}
+                    aria-current={active ? "page" : undefined}
+                    className="group relative -my-5 flex size-[clamp(62px,17vw,70px)] items-center justify-center"
+                  >
+                    {/* soft glow ring; pulses while Play is the current page */}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "absolute inset-0 rounded-full bg-accent/35 transition-transform duration-300",
+                        active ? "play-pulse" : "scale-90 group-hover:scale-100",
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "relative flex size-[86%] items-center justify-center rounded-full bg-gradient-to-br from-[#f6b46a] to-accent-2 text-navy shadow-[0_12px_26px_rgba(238,159,72,0.55)] ring-4 ring-white transition-transform duration-200 group-active:scale-95",
+                        active && "scale-105",
+                      )}
+                    >
+                      <Icon className="size-7" strokeWidth={2.4} />
+                    </span>
+                  </Link>
+                </li>
+              );
+            }
             return (
-              <motion.li key={`${tab.href}-${tab.label}`} layout transition={spring} className="relative">
+              <li key={`${tab.href}-${tab.label}`} className="relative">
                 <Link
                   href={tab.href}
                   onClick={(e) => go(tab, e)}
                   aria-label={tab.label}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    // Sizes scale with the screen: ~48px circles on a 375px phone, 56px max.
-                    "relative flex h-[clamp(48px,13vw,56px)] items-center rounded-full text-[15px] font-bold transition-colors duration-200",
-                    active
-                      ? cn("text-white", showLabel ? "gap-2 pl-[5px] pr-[clamp(14px,4vw,20px)]" : "w-[clamp(48px,13vw,56px)] justify-center")
-                      : "w-[clamp(48px,13vw,56px)] justify-center bg-white text-navy shadow-[0_2px_10px_rgba(14,44,60,0.08)] hover:bg-cream",
+                    "relative flex size-[clamp(46px,12.6vw,54px)] items-center justify-center rounded-full transition-colors duration-200",
+                    active ? "text-white" : "bg-white text-navy/70 shadow-[0_2px_10px_rgba(14,44,60,0.08)] hover:text-navy",
                   )}
                 >
                   {active && (
                     <motion.span
-                      layoutId="nav-active-pill"
+                      layoutId="nav-active-dot"
                       transition={spring}
                       className="absolute inset-0 rounded-full bg-navy shadow-[0_10px_22px_rgba(14,44,60,0.35)]"
                     />
                   )}
-                  <span
-                    className={cn(
-                      "relative z-10 flex items-center justify-center rounded-full transition-all duration-300",
-                      active ? "size-[clamp(38px,10.5vw,46px)] bg-white text-navy" : "size-6",
-                    )}
-                  >
-                    <Icon className="size-[22px]" strokeWidth={active ? 2.4 : 2} />
-                  </span>
-                  <AnimatePresence initial={false}>
-                    {active && showLabel && (
-                      <motion.span
-                        key="label"
-                        initial={{ opacity: 0, x: -6 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -6 }}
-                        transition={{ duration: 0.2, delay: 0.05 }}
-                        className="relative z-10 whitespace-nowrap"
-                      >
-                        {tab.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  <Icon className="relative z-10 size-[22px]" strokeWidth={active ? 2.4 : 2} />
                 </Link>
-              </motion.li>
+              </li>
             );
           })}
         </ul>

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { Card, CardTitle } from "@/components/ui/card";
 import { InvitePanel } from "@/components/club/invite-panel";
 import { AnnouncementForm } from "@/components/club/announcement-form";
-import { ResolveDisputeButtons } from "@/components/club/resolve-dispute-buttons";
+import { ReviewMatchButtons } from "@/components/play/review-match-buttons";
 import { formatClub } from "@/lib/time";
 import { id as localeId } from "date-fns/locale";
 
@@ -23,7 +23,7 @@ export default async function ClubPage() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.match.findMany({
-      where: { status: "DISPUTED" },
+      where: { status: { in: ["PENDING", "DISPUTED"] } },
       orderBy: { playedAt: "desc" },
       include: {
         players: {
@@ -65,7 +65,7 @@ export default async function ClubPage() {
 
       {disputes.length > 0 && (
         <Card className="mb-4 space-y-3 border-amber-200">
-          <CardTitle>Match disputed ({disputes.length})</CardTitle>
+          <CardTitle>Skor menunggu verifikasi ({disputes.length})</CardTitle>
           {disputes.map((m) => {
             const name = (p: (typeof m.players)[number]) =>
               p.user.profile?.nickname ?? p.user.name ?? "Player";
@@ -78,10 +78,10 @@ export default async function ClubPage() {
                   {team(1)} vs {team(2)} · {m.score}
                 </p>
                 <p className="text-xs text-slate-500">
-                  Tercatat: Team {winner} menang ·{" "}
+                  Team {winner} menang ·{" "}
                   {formatClub(m.playedAt, "d MMM yyyy", { locale: localeId })}
                 </p>
-                <ResolveDisputeButtons matchId={m.id} />
+                <ReviewMatchButtons matchId={m.id} />
               </div>
             );
           })}

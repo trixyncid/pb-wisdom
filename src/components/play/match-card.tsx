@@ -1,0 +1,79 @@
+import { id as localeId } from "date-fns/locale";
+import { Clock } from "lucide-react";
+import { parseGames } from "@/lib/badminton";
+import { formatClub } from "@/lib/time";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+export type MatchCardPlayer = { id: string; name: string; avatar: string; team: number; won: boolean | null };
+
+/** One match: both teams with avatars, per-game scores, winner highlighted. */
+export function MatchCard({
+  type,
+  score,
+  playedAt,
+  players,
+  pendingBy,
+  footer,
+}: {
+  type: "SINGLES" | "DOUBLES";
+  score: string;
+  playedAt: Date;
+  players: MatchCardPlayer[];
+  /** Name of who recorded it, when still waiting for verification. */
+  pendingBy?: string;
+  footer?: React.ReactNode;
+}) {
+  const games = parseGames(score);
+  const team = (t: 1 | 2) => players.filter((p) => p.team === t);
+  const won = (t: 1 | 2) => team(t).some((p) => p.won);
+  return (
+    <article className={cn("flex flex-col gap-3 rounded-[26px] border bg-white/90 p-3.5 shadow-[0_10px_28px_rgba(14,44,60,0.06)]", pendingBy ? "border-accent/40" : "border-white")}>
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="rounded-full bg-sand px-2.5 py-0.5 font-bold text-navy">{type === "SINGLES" ? "Single" : "Ganda"}</span>
+        {pendingBy ? (
+          <span className="inline-flex items-center gap-1 font-semibold text-accent-ink">
+            <Clock className="size-3.5" /> Menunggu verifikasi · dicatat {pendingBy}
+          </span>
+        ) : (
+          <span className="text-slate-400">{formatClub(playedAt, "d MMM", { locale: localeId })}</span>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        {([1, 2] as const).map((t) => (
+          <div key={t} className="flex items-center gap-2.5">
+            <div className="flex -space-x-2">
+              {team(t).map((p) => (
+                <Avatar key={p.id} className="size-8 ring-2 ring-white">
+                  <AvatarImage src={p.avatar} alt="" />
+                  <AvatarFallback className="text-[10px] text-navy">{p.name.slice(0, 2)}</AvatarFallback>
+                </Avatar>
+              ))}
+            </div>
+            <p className={cn("min-w-0 flex-1 truncate text-sm", won(t) ? "font-bold text-navy" : "font-medium text-navy/55")}>
+              {team(t).map((p) => p.name).join(" & ")}
+            </p>
+            <div className="flex gap-1">
+              {games.map((g, i) => {
+                const mine = g[t - 1];
+                const win = mine > g[2 - t];
+                return (
+                  <span
+                    key={i}
+                    className={cn(
+                      "font-display flex h-7 w-8 items-center justify-center rounded-lg text-sm font-extrabold tabular-nums",
+                      win ? "bg-navy text-white" : "bg-cream text-navy/45",
+                    )}
+                  >
+                    {mine}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+      {footer}
+    </article>
+  );
+}
