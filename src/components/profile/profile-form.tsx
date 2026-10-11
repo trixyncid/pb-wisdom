@@ -26,7 +26,7 @@ export function ProfileForm({
   const [nickname, setNickname] = useState(initial.nickname);
   const [phone, setPhone] = useState(initial.phone || "+62");
   const [imageUrl, setImageUrl] = useState(initial.imageUrl);
-  const [locale, setLocale] = useState(initial.locale);
+  const [locale, setLocale] = useState<"id" | "en">(initial.locale === "en" ? "en" : "id");
   const [pending, start] = useTransition();
   const [photoPending, startPhoto] = useTransition();
 
@@ -85,7 +85,6 @@ export function ProfileForm({
             const res = await updateProfileAction({
               nickname,
               phone: phone === "+62" || phone.length <= 3 ? "" : phone,
-              imageUrl: imageUrl || undefined,
               locale,
             });
             if (!res.ok) {
@@ -112,7 +111,7 @@ export function ProfileForm({
 
         <div className="space-y-1.5">
           <Label>Language</Label>
-          <LanguageSelect value={locale} onChange={setLocale} />
+          <LanguageSelect value={locale} onChange={(v) => setLocale(v === "en" ? "en" : "id")} />
         </div>
 
         <Button type="submit" disabled={pending} className="mt-1 w-full">

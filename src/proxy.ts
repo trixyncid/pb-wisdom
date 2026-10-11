@@ -8,6 +8,7 @@ const alwaysPublic = [
   "/register",
   "/api/auth",
   "/api/cron",
+  "/avatar",
 ];
 
 const softPublic = ["/", "/jadwal"];

@@ -1,15 +1,5 @@
-"use client";
-
-import { motion } from "motion/react";
-
+// A CSS animation rather than a motion component: motion rendered the page at
+// opacity 0 in the server HTML, so nothing was visible until JS hydrated.
 export function PageTransition({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: "easeOut" }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className="page-enter">{children}</div>;
 }

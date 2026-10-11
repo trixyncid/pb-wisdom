@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation";
+import type { Role } from "@prisma/client";
 import { motion } from "motion/react";
 import {
   ArrowLeft,
@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/lib/store";
+import Image from "next/image";
+import shuttleImg from "@/assets/brand/shuttle-3d.png";
 
 type Tab = {
   href: string;
@@ -53,13 +55,13 @@ function isActive(pathname: string, tab: Tab) {
   return pathname === tab.href || pathname.startsWith(`${tab.href}/`);
 }
 
-export function BottomNav() {
+// The role comes from the server (AppShell) instead of useSession(), which
+// fetched /api/auth/session on every page load and window focus.
+export function BottomNav({ role }: { role: Role | null }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { data: session, status } = useSession();
   const openAuth = useUiStore((s) => s.openAuth);
-  const loggedIn = status === "authenticated";
-  const isAdmin = session?.user?.role === "ADMIN";
+  const loggedIn = role !== null;
+  const isAdmin = role === "ADMIN";
   const inAdminArea = pathname.startsWith("/club");
 
   const tabs: Tab[] = inAdminArea && isAdmin
@@ -84,11 +86,6 @@ export function BottomNav() {
     if (!loggedIn) {
       e.preventDefault();
       openAuth(tab.href);
-      return;
-    }
-    if (!loggedIn) {
-      e.preventDefault();
-      router.push(`/?login=1&next=${encodeURIComponent(tab.href)}`);
     }
   }
 
@@ -152,8 +149,7 @@ export function BottomNav() {
 
       <aside className="fixed left-0 top-0 z-40 hidden h-full w-60 flex-col border-r border-[#0b2a4a]/8 bg-white/90 p-4 backdrop-blur md:flex">
         <div className="mb-8 flex items-center gap-2 px-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/shuttle-3d.png" alt="" className="h-10 w-10" />
+          <Image src={shuttleImg} alt="" width={40} height={40} className="h-10 w-10" />
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#2eb6ea]">
               PB Wisdom

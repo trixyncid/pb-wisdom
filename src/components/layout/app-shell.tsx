@@ -1,8 +1,8 @@
 import { BottomNav } from "@/components/layout/bottom-nav";
-import { PageTransition } from "@/components/layout/page-transition";
 import { TopBar } from "@/components/layout/top-bar";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { avatarUrl } from "@/lib/avatar";
 
 export async function AppShell({
   children,
@@ -20,6 +20,7 @@ export async function AppShell({
         }),
         prisma.memberProfile.findUnique({
           where: { userId: session.user.id },
+          select: { nickname: true, updatedAt: true },
         }),
       ])
     : [0, null];
@@ -29,17 +30,17 @@ export async function AppShell({
 
   return (
     <div className="min-h-dvh md:pl-60">
-      <BottomNav />
+      <BottomNav role={session?.user?.role ?? null} />
       {isMember && (
         <TopBar
           nick={nick}
-          imageUrl={profile?.imageUrl ?? session?.user?.image ?? null}
+          imageUrl={avatarUrl(session.user.id, profile?.updatedAt)}
           isAdmin={session?.user?.role === "ADMIN"}
           unread={unread}
         />
       )}
       <main className="mx-auto max-w-3xl px-4 pb-28 pt-4 md:pb-10 md:pt-6">
-        <PageTransition>{children}</PageTransition>
+        {children}
       </main>
     </div>
   );

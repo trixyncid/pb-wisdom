@@ -87,7 +87,7 @@ Mutations (RSVP, upload, approve, etc.) are no-ops in demo mode.
 - Events + RSVP + photo albums per event
 - Match logging, opponent confirm, winrate, Home leaderboard (podium + recent matches)
 - Club admin hub, announcements, CSV export
-- Daily cron for overdue iuran reminders (`/api/cron/overdue-fees`)
+- Daily cron for overdue iuran reminders (`/api/cron/daily`)
 - Light sport UI (navy / sky blue / white) with animated shuttle assets
 
 ## Production (Vercel + Railway)

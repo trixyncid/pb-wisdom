@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { ApprovalWatcher } from "@/components/auth/approval-watcher";
 
 export default async function PendingPage() {
   const session = await auth();
@@ -17,6 +18,7 @@ export default async function PendingPage() {
           permintaanmu. Kamu akan bisa masuk setelah disetujui.
         </p>
         <LogoutButton className="w-full" />
+        <ApprovalWatcher />
       </Card>
     </main>
   );

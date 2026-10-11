@@ -15,6 +15,8 @@ import type { LeaderboardRow } from "@/lib/stats";
 import type { FeeStatus } from "@prisma/client";
 import { FloatingShuttle } from "@/components/home/floating-shuttle";
 import { formatClub } from "@/lib/time";
+import Image from "next/image";
+import heroImg from "@/assets/brand/hero-racket-shuttle.png";
 
 function FormDots({ form }: { form: ("W" | "L")[] }) {
   if (form.length === 0) return null;
@@ -164,11 +166,13 @@ export function MemberHome({
             )}
           </div>
           <div className="relative mx-auto h-44 w-full max-w-[220px]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/hero-racket-shuttle.png"
+            <Image
+              src={heroImg}
               alt=""
-              className="float-y absolute inset-0 size-full object-contain drop-shadow-xl"
+              fill
+              sizes="220px"
+              preload
+              className="float-y object-contain drop-shadow-xl"
             />
           </div>
         </div>

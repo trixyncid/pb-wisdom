@@ -89,19 +89,21 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  profile       MemberProfile?
-  invitesCreated Invite[] @relation("InviteCreator")
-  feeDues       FeeDue[]
-  verifiedFees  FeeDue[]  @relation("FeeVerifier")
+  accounts          Account[]
+  sessions          Session[]
+  profile           MemberProfile?
+  invitesCreated    Invite[]            @relation("InviteCreator")
+  feeDues           FeeDue[]
+  verifiedFees      FeeDue[]            @relation("FeeVerifier")
   sessionAttendance SessionAttendance[]
-  eventRsvps    EventRsvp[]
-  eventPhotos   EventPhoto[]
-  matchesLogged Match[]   @relation("MatchLogger")
-  matchPlayers  MatchPlayer[]
-  notifications Notification[]
-  announcements Announcement[]
+  eventRsvps        EventRsvp[]
+  eventPhotos       EventPhoto[]
+  matchesLogged     Match[]             @relation("MatchLogger")
+  matchPlayers      MatchPlayer[]
+  notifications     Notification[]
+  announcements     Announcement[]
+
+  @@index([role])
 }
 
 model Account {
@@ -121,6 +123,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -129,6 +132,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -199,6 +204,7 @@ model TrainingOccurrence {
   attendances SessionAttendance[]
 
   @@unique([sessionId, date])
+  @@index([date])
 }
 
 model SessionAttendance {
@@ -213,57 +219,62 @@ model SessionAttendance {
   user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([occurrenceId, userId])
+  @@index([userId])
 }
 
 model FeePeriod {
-  id                   String   @id @default(cuid())
-  label                String
-  amount               Int
-  dueDate              DateTime
-  paymentInstructions  String   @db.Text
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  label               String
+  amount              Int
+  dueDate             DateTime
+  paymentInstructions String   @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   dues FeeDue[]
 }
 
 model FeeDue {
-  id             String    @id @default(cuid())
-  periodId       String
-  userId         String
-  status         FeeStatus @default(UNPAID)
-  proofUrl       String?
-  rejectReason   String?
-  verifiedById   String?
-  verifiedAt     DateTime?
-  submittedAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  periodId     String
+  userId       String
+  status       FeeStatus @default(UNPAID)
+  proofUrl     String?
+  rejectReason String?
+  verifiedById String?
+  verifiedAt   DateTime?
+  submittedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   period     FeePeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   verifiedBy User?     @relation("FeeVerifier", fields: [verifiedById], references: [id])
 
   @@unique([periodId, userId])
+  @@index([userId])
+  @@index([status])
 }
 
 model Event {
-  id          String    @id @default(cuid())
-  title       String
-  type        EventType @default(SPARRING)
-  startsAt    DateTime
-  endsAt      DateTime?
-  location    String
-  capacity    Int?
-  extraFee    Int?
-  notes       String?   @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  title     String
+  type      EventType @default(SPARRING)
+  startsAt  DateTime
+  endsAt    DateTime?
+  location  String
+  capacity  Int?
+  extraFee  Int?
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   rsvps   EventRsvp[]
   photos  EventPhoto[]
   matches Match[]
   invites Invite[]
+
+  @@index([startsAt])
 }
 
 model EventRsvp {
@@ -279,6 +290,7 @@ model EventRsvp {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
+  @@index([userId])
 }
 
 model EventPhoto {
@@ -291,37 +303,43 @@ model EventPhoto {
 
   event    Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   uploader User  @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, createdAt])
+  @@index([createdAt])
 }
 
 model Match {
-  id          String      @id @default(cuid())
-  type        MatchType
-  status      MatchStatus @default(PENDING)
-  playedAt    DateTime    @default(now())
-  score       String
-  eventId     String?
-  loggedById  String
-  notes       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id         String      @id @default(cuid())
+  type       MatchType
+  status     MatchStatus @default(PENDING)
+  playedAt   DateTime    @default(now())
+  score      String
+  eventId    String?
+  loggedById String
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
   event    Event?        @relation(fields: [eventId], references: [id])
   loggedBy User          @relation("MatchLogger", fields: [loggedById], references: [id])
   players  MatchPlayer[]
+
+  @@index([status, playedAt])
 }
 
 model MatchPlayer {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   matchId   String
   userId    String
   team      Int
-  confirmed Boolean @default(false)
+  confirmed Boolean  @default(false)
   won       Boolean?
 
   match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([matchId, userId])
+  @@index([userId])
 }
 
 model Notification {
@@ -335,6 +353,9 @@ model Notification {
   createdAt DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
 }
 
 model Announcement {
@@ -346,4 +367,6 @@ model Announcement {
   updatedAt   DateTime @updatedAt
 
   createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([createdAt])
 }

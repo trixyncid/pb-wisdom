@@ -72,54 +72,51 @@ export async function registerAction(input: z.infer<typeof registerSchema>) {
   });
 }
 
-export async function updateProfileAction(input: {
-  nickname: string;
-  phone?: string;
-  imageUrl?: string;
-  locale?: string;
-}) {
+// Avatars are cropped and resized in the browser (256px WebP, ~15-30 KB).
+// The cap leaves room for older browsers that fall back to JPEG.
+const profileSchema = z.object({
+  nickname: z.string().trim().min(1, "Nickname wajib diisi").max(40, "Nickname terlalu panjang"),
+  phone: z.string().max(20).optional(),
+  imageUrl: z
+    .string()
+    .max(200_000, "Foto terlalu besar")
+    .regex(/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/, "Format foto tidak valid")
+    .optional(),
+  locale: z.enum(["id", "en"]).optional(),
+});
+
+export async function updateProfileAction(input: z.infer<typeof profileSchema>) {
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
     const session = await requireUser();
+    const data = profileSchema.parse(input);
 
-    await prisma.memberProfile.upsert({
-      where: { userId: session.user.id },
-      create: {
-        userId: session.user.id,
-        nickname: input.nickname,
-        phone: input.phone,
-        imageUrl: input.imageUrl,
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        name: data.nickname,
+        ...(data.locale ? { locale: data.locale } : {}),
+        profile: {
+          upsert: {
+            create: {
+              nickname: data.nickname,
+              phone: data.phone,
+              imageUrl: data.imageUrl,
+            },
+            update: {
+              nickname: data.nickname,
+              phone: data.phone,
+              ...(data.imageUrl ? { imageUrl: data.imageUrl } : {}),
+            },
+          },
+        },
       },
-      update: {
-        nickname: input.nickname,
-        phone: input.phone,
-        ...(input.imageUrl ? { imageUrl: input.imageUrl } : {}),
-      },
+      select: { id: true },
     });
-
-    if (input.locale) {
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: {
-          locale: input.locale,
-          name: input.nickname,
-          ...(input.imageUrl ? { image: input.imageUrl } : {}),
-        },
-      });
-    } else {
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: {
-          name: input.nickname,
-          ...(input.imageUrl ? { image: input.imageUrl } : {}),
-        },
-      });
-    }
 
     revalidatePath("/profile");
     revalidatePath("/");
-    revalidatePath("/notifications");
     return {};
   });
 }

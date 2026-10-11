@@ -14,7 +14,6 @@ export type DirectoryMember = {
   role: string;
   email: string;
   name: string | null;
-  image: string | null;
   nickname: string;
   phone: string | null;
   imageUrl: string | null;
@@ -98,7 +97,7 @@ export function DirectoryBrowser({
             className="flex items-center gap-3 rounded-xl px-2 py-2.5"
           >
             <Avatar className="h-11 w-11">
-              <AvatarImage src={m.imageUrl ?? m.image ?? undefined} />
+              <AvatarImage src={m.imageUrl ?? undefined} />
               <AvatarFallback>{m.nickname.slice(0, 2)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">

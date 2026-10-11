@@ -11,6 +11,8 @@ import { safeRedirectPath } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Image from "next/image";
+import shuttleImg from "@/assets/brand/shuttle-3d.png";
 
 export function AuthModal() {
   const router = useRouter();
@@ -80,10 +82,11 @@ export function AuthModal() {
             </button>
 
             <div className="mb-4 flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/brand/shuttle-3d.png"
+              <Image
+                src={shuttleImg}
                 alt=""
+                width={56}
+                height={56}
                 className="float-y h-14 w-14 object-contain"
               />
               <div>

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import Image from "next/image";
+import heroImg from "@/assets/brand/hero-racket-shuttle.png";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,10 +40,12 @@ export default function LoginPage() {
     <main className="court-stripes flex min-h-dvh items-center justify-center px-4 py-10">
       <Card className="w-full max-w-md space-y-6 p-6">
         <div className="space-y-2 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/brand/hero-racket-shuttle.png"
+          <Image
+            src={heroImg}
             alt=""
+            width={108}
+            height={144}
+            preload
             className="float-y mx-auto h-36 w-auto object-contain"
           />
           <h1 className="text-2xl font-black text-[#0b2a4a]">PB Wisdom</h1>

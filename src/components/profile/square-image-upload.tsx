@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 async function getCroppedDataUrl(
   imageSrc: string,
   crop: Area,
-  size = 512,
+  size = 256,
 ): Promise<string> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
@@ -29,7 +29,12 @@ async function getCroppedDataUrl(
     size,
   );
 
-  return canvas.toDataURL("image/jpeg", 0.9);
+  // 256px WebP is ~15-30 KB. Browsers that cannot encode WebP silently
+  // return PNG, so fall back to JPEG for them.
+  const webp = canvas.toDataURL("image/webp", 0.85);
+  return webp.startsWith("data:image/webp")
+    ? webp
+    : canvas.toDataURL("image/jpeg", 0.85);
 }
 
 function createImage(url: string) {

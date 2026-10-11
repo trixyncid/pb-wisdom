@@ -1,15 +1,16 @@
-"use client";
+import Image from "next/image";
+import shuttleImg from "@/assets/brand/shuttle-3d.png";
 
-import { motion } from "motion/react";
-
+// CSS float animation (globals.css) instead of motion, so this decoration
+// does not pull the animation runtime into the page.
 export function FloatingShuttle() {
   return (
-    <motion.img
-      src="/brand/shuttle-3d.png"
+    <Image
+      src={shuttleImg}
       alt=""
-      className="pointer-events-none absolute -right-2 top-3 z-0 h-16 w-16 opacity-80"
-      animate={{ y: [0, -12, 0], rotate: [0, 8, -4, 0] }}
-      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+      width={64}
+      height={64}
+      className="float-y pointer-events-none absolute -right-2 top-3 z-0 h-16 w-16 opacity-80"
     />
   );
 }

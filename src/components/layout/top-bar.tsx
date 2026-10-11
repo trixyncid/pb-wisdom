@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function TopBar({
   nick,
@@ -18,16 +19,12 @@ export function TopBar({
     <header className="sticky top-0 z-40 border-b border-[#0b2a4a]/10 bg-[#f3f8fc]/95 pt-[env(safe-area-inset-top)] backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4">
         <Link href="/profile" className="flex min-w-0 items-center gap-2.5">
-          <span className="relative size-9 shrink-0 overflow-hidden rounded-full bg-[#d9e8f4]">
-            {imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="" className="size-full object-cover" />
-            ) : (
-              <span className="flex size-full items-center justify-center text-[11px] font-semibold text-[#0b2a4a]">
-                {initials}
-              </span>
-            )}
-          </span>
+          <Avatar className="size-9 shrink-0 bg-[#d9e8f4]">
+            {imageUrl && <AvatarImage src={imageUrl} alt="" className="object-cover" />}
+            <AvatarFallback className="text-[11px] font-semibold text-[#0b2a4a]">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
           <span className="min-w-0">
             <span className="block truncate text-[15px] font-semibold leading-5 text-[#0b2a4a]">
               {nick}

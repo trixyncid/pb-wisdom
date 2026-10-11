@@ -51,7 +51,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers session={session} demo={demo}>
+        <Providers demo={demo}>
           {demo && <DemoBanner role={demoRole} />}
           {children}
         </Providers>

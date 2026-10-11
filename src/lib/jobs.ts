@@ -6,19 +6,18 @@ import { nextDateForWeekday } from "@/lib/time";
 // exported from an action file becomes a public endpoint, and these have no
 // caller to authenticate. They run from the cron route or from server code.
 
+/** Creates the next occurrence of every active weekly session (one query). */
 export async function ensureUpcomingOccurrences() {
   if (isDemoMode()) return;
   const sessions = await prisma.trainingSession.findMany({
     where: { active: true },
+    select: { id: true, weekday: true },
   });
-  for (const s of sessions) {
-    const date = nextDateForWeekday(s.weekday);
-    await prisma.trainingOccurrence.upsert({
-      where: { sessionId_date: { sessionId: s.id, date } },
-      create: { sessionId: s.id, date },
-      update: {},
-    });
-  }
+  if (sessions.length === 0) return;
+  await prisma.trainingOccurrence.createMany({
+    data: sessions.map((s) => ({ sessionId: s.id, date: nextDateForWeekday(s.weekday) })),
+    skipDuplicates: true,
+  });
 }
 
 export async function sendOverdueFeeReminders() {

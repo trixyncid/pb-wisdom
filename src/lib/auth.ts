@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { compare } from "bcryptjs";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -97,7 +98,10 @@ const providers: Provider[] = [
         return null;
       }
 
-      const user = await prisma.user.findUnique({ where: { email } });
+      const user = await prisma.user.findUnique({
+        where: { email },
+        omit: { passwordHash: false },
+      });
       const valid = await compare(
         parsed.data.password,
         user?.passwordHash ?? DUMMY_HASH,
@@ -109,7 +113,6 @@ const providers: Provider[] = [
         id: user.id,
         email: user.email,
         name: user.name,
-        image: user.image,
         role: user.role,
         locale: user.locale,
       };
@@ -168,9 +171,13 @@ const nextAuth = NextAuth({
         return token;
       }
 
+      // Re-read the role on every call so a demotion or rejection applies
+      // immediately. Only three small columns: avatars and hashes stay out.
+      const roleSelect = { role: true, locale: true, name: true } as const;
       if (user) {
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id! },
+          select: roleSelect,
         });
         token.id = user.id!;
         token.role = dbUser?.role ?? (user as { role?: Role }).role ?? "PENDING";
@@ -178,6 +185,7 @@ const nextAuth = NextAuth({
       } else if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id },
+          select: roleSelect,
         });
         if (dbUser) {
           token.role = dbUser.role;
@@ -246,9 +254,11 @@ export const handlers = nextAuth.handlers;
 export const signIn = nextAuth.signIn;
 export const signOut = nextAuth.signOut;
 
-export async function auth(): Promise<Session | null> {
+// cache() dedupes calls within one request: the page, AppShell and any guard
+// share a single session lookup instead of hitting the database each time.
+export const auth = cache(async (): Promise<Session | null> => {
   if (isDemoMode()) {
     return getDemoSession();
   }
   return nextAuth.auth();
-}
+});
