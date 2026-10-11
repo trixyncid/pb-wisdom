@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, Check, Minus, Plus, Search, Trophy, UserPlus, X } from "lucide-react";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import trophy3d from "@/assets/3d/trophy.png";
 import shuttle3d from "@/assets/3d/shuttle.png";
+import logoLight from "@/assets/brand/logo-light.png";
 
 export type ScorerMember = { id: string; name: string; avatar: string };
 type MatchType = "SINGLES" | "DOUBLES";
@@ -79,8 +80,14 @@ export function Scorer({
   });
 
   function requestClose() {
-    if (step === "done" || !dirty || window.confirm("Batalkan pencatatan skor?")) onClose();
+    if (step === "done" || !dirty || window.confirm("Batalkan pencatatan skor?")) {
+      exitLandscape();
+      onClose();
+    }
   }
+
+  // Release fullscreen / orientation lock if the scorer unmounts mid-game.
+  useEffect(() => exitLandscape, []);
 
   function assign(id: string) {
     if (!picking) return;
@@ -169,8 +176,8 @@ export function Scorer({
       </svg>
       <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-accent/25 blur-3xl" />
 
-      {/* header */}
-      <header className="relative flex items-center gap-3 px-4 pb-2 pt-[max(14px,env(safe-area-inset-top))]">
+      {/* header (the scoreboard has its own controls) */}
+      <header className={cn("relative flex items-center gap-3 px-4 pb-2 pt-[max(14px,env(safe-area-inset-top))]", step === "score" && "hidden")}>
         <button
           type="button"
           onClick={step === "score" ? () => setStep("players") : step === "review" ? () => setStep("score") : requestClose}
@@ -283,57 +290,41 @@ export function Scorer({
                 </span>
               </div>
 
-              <PrimaryButton disabled={!playersReady} onClick={() => setStep("score")}>
+              <PrimaryButton
+                disabled={!playersReady}
+                onClick={() => {
+                  enterLandscape();
+                  setStep("score");
+                }}
+              >
                 {playersReady ? "Lanjut ke skor" : "Pilih semua pemain dulu"}
               </PrimaryButton>
             </StepPane>
           )}
 
           {step === "score" && (
-            <StepPane key="score">
-              {/* game tabs */}
-              <div className="flex items-center justify-center gap-2">
-                {games.map((g, i) => {
-                  const w = gameWinner(g);
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setCurrent(i)}
-                      aria-current={i === current}
-                      className={cn(
-                        "flex h-11 items-center gap-2 rounded-full px-4 text-sm font-bold transition",
-                        i === current ? "bg-white text-navy" : "bg-white/10 text-white/70",
-                      )}
-                    >
-                      G{i + 1}
-                      <span className={cn("font-display tabular-nums", w && "text-accent-ink")}>
-                        {g[0]}-{g[1]}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <GameBoard
-                game={games[current]}
-                gameIndex={current}
-                teams={lineup.map((ids) => ids.map((id) => byId.get(id)!)) as [ScorerMember[], ScorerMember[]]}
-                gamesWon={[finished.slice(0, current).filter((g) => gameWinner(g) === 1).length, finished.slice(0, current).filter((g) => gameWinner(g) === 2).length]}
-                onBump={bump}
-                onSet={setScore}
-              />
-
-              {(() => {
-                const w = gameWinner(games[current]);
-                if (!w) return <p className="text-center text-sm text-white/50">Tap angka untuk mengetik skor langsung</p>;
-                return (
-                  <PrimaryButton onClick={nextGame}>
-                    {decided ? "Lihat hasil" : current < games.length - 1 ? `Ke game ${current + 2}` : `Lanjut game ${games.length + 1}`}
-                  </PrimaryButton>
-                );
-              })()}
-            </StepPane>
+            <LandscapeScoreboard
+              key="score"
+              games={games}
+              current={current}
+              onSelectGame={setCurrent}
+              teams={lineup.map((ids) => ids.map((id) => byId.get(id)!)) as [ScorerMember[], ScorerMember[]]}
+              gamesWon={[
+                finished.slice(0, current).filter((g) => gameWinner(g) === 1).length,
+                finished.slice(0, current).filter((g) => gameWinner(g) === 2).length,
+              ]}
+              decided={decided}
+              onBump={bump}
+              onNext={() => {
+                if (decided) exitLandscape();
+                nextGame();
+              }}
+              onBack={() => {
+                exitLandscape();
+                setStep("players");
+              }}
+              onClose={requestClose}
+            />
           )}
 
           {step === "review" && !("error" in verdict) && (
@@ -451,179 +442,292 @@ function PrimaryButton({ children, disabled, onClick }: { children: React.ReactN
   );
 }
 
-/** The live scoreboard for one game. */
-function GameBoard({
-  game,
-  gameIndex,
+// ---------- landscape ----------
+
+type LockableOrientation = ScreenOrientation & { lock?: (o: "landscape") => Promise<void>; unlock?: () => void };
+
+/** Fullscreen + landscape lock where the browser allows it (Android). */
+function enterLandscape() {
+  const el = document.documentElement;
+  const lock = () => (screen.orientation as LockableOrientation | undefined)?.lock?.("landscape").catch(() => {});
+  if (!document.fullscreenElement && el.requestFullscreen) {
+    el.requestFullscreen({ navigationUI: "hide" }).then(lock, () => {});
+  } else {
+    lock();
+  }
+}
+
+function exitLandscape() {
+  (screen.orientation as LockableOrientation | undefined)?.unlock?.();
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+const portraitQuery = "(orientation: portrait)";
+function subscribePortrait(cb: () => void) {
+  const mq = window.matchMedia(portraitQuery);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+/** True while the phone is held upright (no lock: iPhone, or lock refused). */
+function usePortrait() {
+  return useSyncExternalStore(subscribePortrait, () => window.matchMedia(portraitQuery).matches, () => false);
+}
+
+/**
+ * The scoreboard, always laid out landscape: Tim A | logo + games | Tim B.
+ * When the phone stays upright, the whole board is drawn rotated 90°, so the
+ * player just turns the phone.
+ */
+function LandscapeScoreboard({
+  games,
+  current,
+  onSelectGame,
   teams,
   gamesWon,
+  decided,
   onBump,
-  onSet,
+  onNext,
+  onBack,
+  onClose,
 }: {
-  game: GameScore;
-  gameIndex: number;
+  games: GameScore[];
+  current: number;
+  onSelectGame: (i: number) => void;
   teams: [ScorerMember[], ScorerMember[]];
   gamesWon: [number, number];
+  decided: boolean;
   onBump: (team: 0 | 1, delta: 1 | -1) => void;
-  onSet: (team: 0 | 1, value: number) => void;
+  onNext: () => void;
+  onBack: () => void;
+  onClose: () => void;
 }) {
+  const portrait = usePortrait();
+  const game = games[current];
   const winner = gameWinner(game);
-  const [a, b] = game;
-  const deuce = !winner && a >= 20 && a === b;
-  const label = (team: 0 | 1) => {
-    if (winner) return winner === team + 1 ? "Menang game" : null;
-    const mine = game[team];
-    const theirs = game[1 - team];
-    const point = (mine >= 20 && mine > theirs) || mine === POINT_CAP - 1;
-    if (!point) return null;
-    return gamesWon[team] === 1 || gameIndex === 2 ? "Match point" : "Game point";
-  };
+  const deuce = !winner && game[0] >= 20 && game[0] === game[1];
 
   return (
-    <div className="relative grid min-h-0 flex-1 grid-cols-2 gap-3">
-      {([0, 1] as const).map((team) => {
-        const tag = label(team);
-        const lost = winner !== null && winner !== team + 1;
-        return (
-          <div
-            key={team}
-            className={cn(
-              "relative flex flex-col items-center justify-between overflow-hidden rounded-[30px] bg-gradient-to-b p-3 transition-opacity duration-300",
-              TEAM_STYLE[team].panel,
-              lost && "opacity-45",
-            )}
-          >
-            <div className="flex w-full flex-col items-center gap-1.5">
-              <div className="flex -space-x-3">
-                {teams[team].map((m) => (
-                  <Avatar key={m.id} className="size-10 ring-2 ring-white">
-                    <AvatarImage src={m.avatar} alt="" />
-                    <AvatarFallback className="text-[10px] text-navy">{m.name.slice(0, 2)}</AvatarFallback>
-                  </Avatar>
-                ))}
-              </div>
-              <p className="w-full truncate text-center text-xs font-bold">{teams[team].map((m) => m.name).join(" & ")}</p>
-              <div className="h-6">
-                <AnimatePresence>
-                  {tag && (
-                    <motion.span
-                      initial={{ scale: 0.5, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.5, opacity: 0 }}
-                      className={cn("inline-block rounded-full px-2.5 py-0.5 text-[11px] font-extrabold uppercase", team === 0 ? "bg-navy text-accent" : "bg-accent text-navy")}
-                    >
-                      {tag}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
+    <motion.div
+      className={cn(
+        "z-10 flex bg-[#0b2331]",
+        // Upright phone: a landscape-sized box rotated into view.
+        portrait ? "fixed left-[100vw] top-0 h-[100vw] w-[100dvh] origin-top-left rotate-90" : "fixed inset-0",
+      )}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      {/* watermark */}
+      <Image
+        src={logoLight}
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 w-[58%] max-w-[560px] -translate-x-1/2 -translate-y-1/2 opacity-[0.06]"
+      />
 
-            <ScoreNumber value={game[team]} onChange={(v) => onSet(team, v)} label={`Skor ${TEAM_STYLE[team].name}`} />
+      <div className="relative grid min-h-0 flex-1 grid-cols-[1fr_minmax(118px,22%)_1fr] gap-3 p-3 pl-[max(12px,env(safe-area-inset-left))] pr-[max(12px,env(safe-area-inset-right))]">
+        <TeamPanel team={0} members={teams[0]} game={game} gameIndex={current} gamesWon={gamesWon} onBump={onBump} />
 
-            <div className="flex w-full gap-2">
-              <button
-                type="button"
-                onClick={() => onBump(team, -1)}
-                disabled={game[team] === 0}
-                aria-label={`Kurangi poin ${TEAM_STYLE[team].name}`}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-black/10 transition active:scale-90 disabled:opacity-30"
-              >
-                <Minus className="size-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onBump(team, 1)}
-                disabled={!canScore(game, team === 0 ? 1 : 2)}
-                aria-label={`Tambah poin ${TEAM_STYLE[team].name}`}
-                className={cn(
-                  "flex h-14 flex-1 items-center justify-center rounded-full shadow-lg transition active:scale-95 disabled:opacity-30",
-                  team === 0 ? "bg-navy text-white" : "bg-accent text-navy",
-                )}
-              >
-                <Plus className="size-6" strokeWidth={2.6} />
-              </button>
-            </div>
+        {/* center column */}
+        <div className="flex min-h-0 flex-col items-center gap-2 py-1">
+          <div className="flex w-full items-center justify-between">
+            <button type="button" onClick={onBack} aria-label="Kembali ke pemain" className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20">
+              <ArrowLeft className="size-5" />
+            </button>
+            <button type="button" onClick={onClose} aria-label="Tutup" className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20">
+              <X className="size-5" />
+            </button>
           </div>
-        );
-      })}
+          <Image src={logoLight} alt="PB Wisdom" className="w-full max-w-[120px]" priority />
+          <div className="flex w-full flex-col gap-1.5" role="tablist" aria-label="Game">
+            {games.map((g, i) => {
+              const w = gameWinner(g);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === current}
+                  onClick={() => onSelectGame(i)}
+                  className={cn(
+                    "flex h-9 items-center justify-between rounded-full px-3 text-xs font-bold transition",
+                    i === current ? "bg-white text-navy" : "bg-white/10 text-white/70",
+                  )}
+                >
+                  <span>G{i + 1}</span>
+                  <span className={cn("font-display tabular-nums", w && i !== current && "text-accent")}>
+                    {g[0]}-{g[1]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-center">
+            <AnimatePresence mode="wait">
+              {winner ? (
+                <motion.div key="won" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={springy} className="flex flex-col items-center gap-1 text-white">
+                  <Trophy className="size-6 text-accent" />
+                  <p className="font-display text-sm font-extrabold leading-tight">
+                    Game {current + 1}
+                    <br />
+                    untuk {TEAM_STYLE[winner - 1].name}
+                  </p>
+                </motion.div>
+              ) : deuce ? (
+                <motion.span key="deuce" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} className="rounded-full bg-white px-3 py-1 font-display text-sm font-extrabold text-navy">
+                  DEUCE
+                </motion.span>
+              ) : (
+                <motion.p key="hint" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-[11px] leading-snug text-white/45">
+                  Tap kartu tim untuk menambah poin
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+          {winner && (
+            <motion.button
+              type="button"
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={onNext}
+              className="h-12 w-full rounded-full bg-accent text-sm font-bold text-navy shadow-[0_10px_24px_rgba(238,159,72,0.45)]"
+            >
+              {decided ? "Lihat hasil" : current < games.length - 1 ? `Ke game ${current + 2}` : `Game ${games.length + 1}`}
+            </motion.button>
+          )}
+        </div>
 
-      <AnimatePresence>
-        {deuce && (
-          <motion.span
-            initial={{ y: -10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -10, opacity: 0 }}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white px-3 py-1 font-display text-sm font-extrabold text-navy shadow-lg"
-          >
-            DEUCE
-          </motion.span>
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {winner && (
-          <motion.div
-            initial={{ scale: 0.6, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={springy}
-            className="pointer-events-none absolute inset-x-6 bottom-20 flex items-center justify-center gap-2 rounded-full bg-white py-3 text-navy shadow-2xl"
-          >
-            <Trophy className="size-5 text-accent-ink" />
-            <span className="font-display text-lg font-extrabold">Game {gameIndex + 1} untuk {TEAM_STYLE[winner - 1].name}!</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+        <TeamPanel team={1} members={teams[1]} game={game} gameIndex={current} gamesWon={gamesWon} onBump={onBump} />
+      </div>
+    </motion.div>
   );
 }
 
-/** Big animated score; tap it to type the number directly. */
-function ScoreNumber({ value, onChange, label }: { value: number; onChange: (v: number) => void; label: string }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  if (editing) {
-    return (
-      <input
-        autoFocus
-        aria-label={label}
-        inputMode="numeric"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value.replace(/\D/g, "").slice(0, 2))}
-        onBlur={() => {
-          if (draft !== "") onChange(Number(draft));
-          setEditing(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        }}
-        className="font-display w-28 rounded-2xl bg-white/25 text-center text-7xl font-extrabold tabular-nums outline-none ring-2 ring-white/60"
-      />
-    );
-  }
+/** A whole team card is the "+1" button; the small − undoes a point. */
+function TeamPanel({
+  team,
+  members,
+  game,
+  gameIndex,
+  gamesWon,
+  onBump,
+}: {
+  team: 0 | 1;
+  members: ScorerMember[];
+  game: GameScore;
+  gameIndex: number;
+  gamesWon: [number, number];
+  onBump: (team: 0 | 1, delta: 1 | -1) => void;
+}) {
+  const value = game[team];
+  const winner = gameWinner(game);
+  const enabled = canScore(game, team === 0 ? 1 : 2);
+  const lost = winner !== null && winner !== team + 1;
+  const theirs = game[1 - team];
+  const atPoint = !winner && ((value >= 20 && value > theirs) || value === POINT_CAP - 1);
+  const tag = winner === team + 1 ? "Menang game" : atPoint ? (gamesWon[team] === 1 || gameIndex === 2 ? "Match point" : "Game point") : null;
+  const name = TEAM_STYLE[team].name;
+
   return (
-    <button
-      type="button"
-      aria-label={`${label}: ${value}. Tap untuk mengetik`}
-      onClick={() => {
-        setDraft(String(value));
-        setEditing(true);
+    <motion.div
+      role="button"
+      tabIndex={enabled ? 0 : -1}
+      aria-disabled={!enabled}
+      aria-label={`Tambah poin ${name}, skor ${value}`}
+      onClick={() => enabled && onBump(team, 1)}
+      onKeyDown={(e) => {
+        if (enabled && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onBump(team, 1);
+        }
       }}
-      className="relative h-24 w-28 overflow-hidden"
+      whileTap={enabled ? { scale: 0.98 } : undefined}
+      className={cn(
+        "relative flex min-h-0 select-none flex-col items-center justify-between overflow-hidden rounded-[30px] bg-gradient-to-b p-3 outline-none transition-opacity duration-300 focus-visible:ring-4 focus-visible:ring-white/70",
+        TEAM_STYLE[team].panel,
+        enabled && "cursor-pointer",
+        lost && "opacity-45",
+      )}
+      style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent" }}
     >
-      <AnimatePresence mode="popLayout" initial={false}>
+      {/* tap flash */}
+      <AnimatePresence>
         <motion.span
           key={value}
-          initial={{ y: 40, opacity: 0, scale: 0.8 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -40, opacity: 0, scale: 0.8 }}
-          transition={springy}
-          className="font-display absolute inset-0 flex items-center justify-center text-[88px] font-extrabold leading-none tabular-nums"
-        >
-          {value}
-        </motion.span>
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-white"
+          initial={{ opacity: 0.22 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.35 }}
+        />
       </AnimatePresence>
-    </button>
+
+      <div className="flex w-full items-center gap-2">
+        <div className="flex -space-x-2.5">
+          {members.map((m) => (
+            <Avatar key={m.id} className="size-9 ring-2 ring-white">
+              <AvatarImage src={m.avatar} alt="" />
+              <AvatarFallback className="text-[10px] text-navy">{m.name.slice(0, 2)}</AvatarFallback>
+            </Avatar>
+          ))}
+        </div>
+        <p className="min-w-0 flex-1 truncate text-sm font-bold">{members.map((m) => m.name).join(" & ")}</p>
+        <span className="font-display text-xs font-extrabold opacity-70">{name}</span>
+      </div>
+
+      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center">
+        <div className="h-6">
+          <AnimatePresence>
+            {tag && (
+              <motion.span
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.5, opacity: 0 }}
+                className={cn("inline-block rounded-full px-2.5 py-0.5 text-[11px] font-extrabold uppercase", team === 0 ? "bg-navy text-accent" : "bg-accent text-navy")}
+              >
+                {tag}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
+        {/* No overflow-hidden here: Chrome drops clipped children of a rotated
+            parent (upright-phone mode). The card itself clips the roll animation. */}
+        <div className="relative flex h-[clamp(96px,46vmin,280px)] w-full items-center justify-center">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={value}
+              initial={{ y: 60, opacity: 0, scale: 0.7 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: -60, opacity: 0, scale: 0.7 }}
+              transition={springy}
+              className="font-display absolute text-[clamp(88px,40vmin,250px)] font-extrabold leading-none tabular-nums"
+            >
+              {value}
+            </motion.span>
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div className="flex w-full items-center justify-between">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onBump(team, -1);
+          }}
+          disabled={value === 0}
+          aria-label={`Kurangi poin ${name}`}
+          className="flex size-12 items-center justify-center rounded-full bg-black/15 transition active:scale-90 disabled:opacity-30"
+        >
+          <Minus className="size-5" />
+        </button>
+        <span className="flex items-center gap-1 text-xs font-bold opacity-70">
+          <Plus className="size-3.5" /> tap kartu
+        </span>
+      </div>
+    </motion.div>
   );
 }
 
