@@ -22,7 +22,7 @@ export function TopBar({ member, loggedIn }: { member: TopBarMember | null; logg
     <header className="sticky top-0 z-40 border-b border-white/40 bg-background/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl md:border-none md:bg-transparent md:backdrop-blur-none">
       <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-4">
         <Link href="/" aria-label="PB Wisdom, beranda" className="shrink-0 md:invisible">
-          <Image src={logoImg} alt="PB Wisdom" width={64} height={48} preload className="h-12 w-auto" />
+          <Image src={logoImg} alt="PB Wisdom" width={64} height={48} preload style={{ width: "auto", height: 48 }} />
         </Link>
         <div className="flex items-center gap-2">
           {member ? (

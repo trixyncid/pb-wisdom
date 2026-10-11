@@ -1,39 +1,6 @@
-import { requireAdminPage } from "@/lib/authz";
-import Link from "next/link";
-import { prisma } from "@/lib/db";
-import { Card, CardTitle } from "@/components/ui/card";
-import { CreateEventForm } from "@/components/club/create-event-form";
-import { formatClub } from "@/lib/time";
+import { redirect } from "next/navigation";
 
-export default async function ClubEventsPage() {
-  await requireAdminPage();
-  const events = await prisma.event.findMany({
-    orderBy: { startsAt: "desc" },
-    include: { _count: { select: { photos: true, rsvps: true } } },
-  });
-
-  return (
-    <>
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-navy">Kelola Events</h1>
-      </div>
-      <Card className="mb-4">
-        <CardTitle className="mb-3">Buat event</CardTitle>
-        <CreateEventForm />
-      </Card>
-      <div className="space-y-2">
-        {events.map((e) => (
-          <Link key={e.id} href={`/events/${e.id}`}>
-            <Card className="mb-2">
-              <p className="font-semibold text-navy">{e.title}</p>
-              <p className="text-xs text-slate-400">
-                {formatClub(e.startsAt, "d MMM yyyy HH:mm")} · {e._count.rsvps} RSVP ·{" "}
-                {e._count.photos} foto
-              </p>
-            </Card>
-          </Link>
-        ))}
-      </div>
-    </>
-  );
+// Events are managed together with weekly training on the Agenda page.
+export default function ClubEventsPage() {
+  redirect("/club/jadwal");
 }

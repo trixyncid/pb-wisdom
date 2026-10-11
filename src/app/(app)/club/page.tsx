@@ -36,8 +36,7 @@ export default async function ClubPage() {
   const links = [
     { href: "/club/members", title: "Members", desc: `${pendingMembers} pending approval` },
     { href: "/club/iuran", title: "Iuran", desc: `${pendingFees} bukti menunggu` },
-    { href: "/club/jadwal", title: "Jadwal", desc: "Kelola latihan mingguan" },
-    { href: "/club/events", title: "Events", desc: "Buat event & album" },
+    { href: "/club/jadwal", title: "Agenda", desc: "Latihan rutin, sparring, turnamen & event" },
     { href: "/club/export", title: "Export CSV", desc: "Laporan iuran" },
   ];
 

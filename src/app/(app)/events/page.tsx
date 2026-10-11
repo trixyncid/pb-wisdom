@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { formatClub } from "@/lib/time";
+import { AGENDA_KINDS } from "@/lib/agenda";
 
 export default async function EventsPage() {
   // Live data: render per request, never at build time (no DB during the build).
@@ -52,9 +53,9 @@ export default async function EventsPage() {
                   </div>
                   <div className="flex flex-1 flex-col justify-center gap-1 p-3">
                     <div className="flex items-center gap-2">
-                      <Badge>{event.type}</Badge>
+                      <Badge className={AGENDA_KINDS[event.type].chip}>{AGENDA_KINDS[event.type].label}</Badge>
                       {!upcoming && (
-                        <Badge className="bg-white/10 text-slate-300">Past</Badge>
+                        <Badge className="bg-sand text-navy/60">Selesai</Badge>
                       )}
                     </div>
                     <p className="font-semibold text-navy">{event.title}</p>

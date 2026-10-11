@@ -46,8 +46,38 @@ export function startOfClubTodayKey() {
   return clubDayKey(0, 0);
 }
 
-/** The next occurrence date for a weekday (0 = Sunday), including today. */
-export function nextDateForWeekday(weekday: number) {
+
+/** The next `count` dates for a weekday (0 = Sunday), starting today. */
+export function upcomingDatesForWeekday(weekday: number, count: number) {
   const today = new TZDate(Date.now(), CLUB_TZ).getDay();
-  return clubDayKey((weekday - today + 7) % 7);
+  const first = (weekday - today + 7) % 7;
+  return Array.from({ length: count }, (_, i) => clubDayKey(first + i * 7));
+}
+
+/** Instant a training occurrence starts: its club date + "HH:mm" in club time. */
+export function occurrenceStart(dateKey: Date, startTime: string) {
+  const [h, m] = startTime.split(":").map(Number);
+  return new Date(
+    new TZDate(
+      dateKey.getUTCFullYear(),
+      dateKey.getUTCMonth(),
+      dateKey.getUTCDate(),
+      Number.isFinite(h) ? h : 0,
+      Number.isFinite(m) ? m : 0,
+      CLUB_TZ,
+    ).getTime(),
+  );
+}
+
+/** "Hari ini" / "Besok" / "Sabtu, 17 Okt" for grouping the agenda by day. */
+export function clubDayLabel(instant: Date, locale: FormatOptions["locale"]) {
+  const key = formatClub(instant, "yyyy-MM-dd");
+  if (key === formatClub(new Date(), "yyyy-MM-dd")) return "Hari ini";
+  if (key === formatClub(new Date(Date.now() + 86_400_000), "yyyy-MM-dd")) return "Besok";
+  return formatClub(instant, "EEEE, d MMM", { locale });
+}
+
+/** The instant `hours` hours ago (e.g. keep events listed shortly after they start). */
+export function hoursAgo(hours: number) {
+  return new Date(Date.now() - hours * 60 * 60 * 1000);
 }

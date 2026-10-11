@@ -1,10 +1,10 @@
 "use client";
 
 import { useTransition } from "react";
-import { withToast } from "@/lib/with-toast";
-import { setAttendanceAction } from "@/actions/jadwal";
-import { Button } from "@/components/ui/button";
 import type { AttendanceStatus } from "@prisma/client";
+import { setAttendanceAction } from "@/actions/jadwal";
+import { withToast } from "@/lib/with-toast";
+import { RsvpSegment } from "@/components/jadwal/rsvp-segment";
 
 export function AttendanceButtons({
   occurrenceId,
@@ -14,40 +14,22 @@ export function AttendanceButtons({
   current: AttendanceStatus | null;
 }) {
   const [pending, start] = useTransition();
-
-  function set(status: AttendanceStatus) {
-    start(async () => {
-      const res = await withToast(setAttendanceAction(occurrenceId, status), { success: "RSVP tersimpan" });
-      if (!res.ok) return;
-    });
-  }
-
   return (
-    <div className="flex gap-2">
-      <Button
-        size="sm"
-        variant={current === "GOING" ? "default" : "secondary"}
-        disabled={pending}
-        onClick={() => set("GOING")}
-      >
-        Hadir
-      </Button>
-      <Button
-        size="sm"
-        variant={current === "MAYBE" ? "default" : "secondary"}
-        disabled={pending}
-        onClick={() => set("MAYBE")}
-      >
-        Mungkin
-      </Button>
-      <Button
-        size="sm"
-        variant={current === "ABSENT" ? "default" : "secondary"}
-        disabled={pending}
-        onClick={() => set("ABSENT")}
-      >
-        Tidak
-      </Button>
-    </div>
+    <RsvpSegment<AttendanceStatus>
+      value={current === "ATTENDED" ? "GOING" : current}
+      disabled={pending}
+      onChange={(status) =>
+        start(async () => {
+          await withToast(setAttendanceAction(occurrenceId, status), {
+            success: status === "GOING" ? "Kamu ikut latihan ini" : status === "MAYBE" ? "Ditandai mungkin" : "Ditandai tidak ikut",
+          });
+        })
+      }
+      options={[
+        { value: "GOING", label: "Hadir", activeClass: "bg-accent text-navy shadow-[0_6px_14px_rgba(238,159,72,0.35)]" },
+        { value: "MAYBE", label: "Mungkin" },
+        { value: "ABSENT", label: "Tidak" },
+      ]}
+    />
   );
 }

@@ -1,12 +1,15 @@
 import { prisma } from "@/lib/db";
 import { isDemoMode } from "@/lib/demo/mode";
-import { nextDateForWeekday } from "@/lib/time";
+import { upcomingDatesForWeekday } from "@/lib/time";
 
 // Background jobs. These live outside "use server" files on purpose: anything
 // exported from an action file becomes a public endpoint, and these have no
 // caller to authenticate. They run from the cron route or from server code.
 
-/** Creates the next occurrence of every active weekly session (one query). */
+/** Weeks of training kept ahead on the agenda. */
+export const OCCURRENCE_WEEKS_AHEAD = 2;
+
+/** Creates the next two weeks of occurrences for every active session (one query). */
 export async function ensureUpcomingOccurrences() {
   if (isDemoMode()) return;
   const sessions = await prisma.trainingSession.findMany({
@@ -15,7 +18,9 @@ export async function ensureUpcomingOccurrences() {
   });
   if (sessions.length === 0) return;
   await prisma.trainingOccurrence.createMany({
-    data: sessions.map((s) => ({ sessionId: s.id, date: nextDateForWeekday(s.weekday) })),
+    data: sessions.flatMap((s) =>
+      upcomingDatesForWeekday(s.weekday, OCCURRENCE_WEEKS_AHEAD).map((date) => ({ sessionId: s.id, date })),
+    ),
     skipDuplicates: true,
   });
 }

@@ -28,12 +28,16 @@ export async function createEventAction(input: z.input<typeof eventSchema>) {
     await requireAdmin();
     const data = eventSchema.parse(input);
 
+    const startsAt = parseClubDateTime(data.startsAt);
+    const endsAt = data.endsAt ? parseClubDateTime(data.endsAt) : null;
+    if (endsAt && endsAt <= startsAt) throw new ActionError("Waktu selesai harus setelah mulai");
+
     const event = await prisma.event.create({
       data: {
         title: data.title,
         type: data.type,
-        startsAt: parseClubDateTime(data.startsAt),
-        endsAt: data.endsAt ? parseClubDateTime(data.endsAt) : null,
+        startsAt,
+        endsAt,
         location: data.location,
         capacity: data.capacity,
         extraFee: data.extraFee,
@@ -57,6 +61,8 @@ export async function createEventAction(input: z.input<typeof eventSchema>) {
     });
 
     revalidatePath("/events");
+    revalidatePath("/jadwal");
+    revalidatePath("/club/jadwal");
     revalidatePath("/");
     return { id: event.id };
   });
@@ -123,6 +129,7 @@ export async function setEventRsvpAction(eventId: string, status: RsvpStatus) {
 
     revalidatePath(`/events/${eventId}`);
     revalidatePath("/events");
+    revalidatePath("/jadwal");
     return { status: result.status };
   });
 }
@@ -167,6 +174,21 @@ export async function deleteEventPhotoAction(photoId: string) {
 
     await prisma.eventPhoto.delete({ where: { id: photoId } });
     revalidatePath(`/events/${photo.eventId}`);
+    revalidatePath("/");
+    return {};
+  });
+}
+
+/** Remove an event (and its RSVPs and photos). Admin only. */
+export async function deleteEventAction(eventId: string) {
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    await requireAdmin();
+    await prisma.event.delete({ where: { id: eventId }, select: { id: true } });
+    revalidatePath("/jadwal");
+    revalidatePath("/events");
+    revalidatePath("/club/jadwal");
     revalidatePath("/");
     return {};
   });

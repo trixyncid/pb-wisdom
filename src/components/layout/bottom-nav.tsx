@@ -40,8 +40,7 @@ const adminTabs: Tab[] = [
   { href: "/club", label: "Hub", icon: LayoutGrid, match: "exact" },
   { href: "/club/members", label: "Members", icon: Users },
   { href: "/club/iuran", label: "Iuran", icon: Receipt },
-  { href: "/club/jadwal", label: "Jadwal", icon: CalendarDays },
-  { href: "/club/events", label: "Events", icon: Trophy },
+  { href: "/club/jadwal", label: "Agenda", icon: CalendarDays },
   { href: "/", label: "App", icon: ArrowLeft, match: "exact" },
 ];
 

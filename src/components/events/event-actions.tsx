@@ -1,11 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
-import { withToast } from "@/lib/with-toast";
 import { Share2 } from "lucide-react";
-import { setEventRsvpAction } from "@/actions/events";
-import { Button } from "@/components/ui/button";
 import type { RsvpStatus } from "@prisma/client";
+import { setEventRsvpAction } from "@/actions/events";
+import { withToast } from "@/lib/with-toast";
+import { RsvpSegment } from "@/components/jadwal/rsvp-segment";
 
 export function EventActions({
   eventId,
@@ -14,43 +14,45 @@ export function EventActions({
 }: {
   eventId: string;
   current: RsvpStatus | null;
-  shareUrl: string;
+  /** Shown as a share button when given (the agenda card has its own). */
+  shareUrl?: string;
 }) {
   const [pending, start] = useTransition();
-
-  function set(status: RsvpStatus) {
-    start(async () => {
-      const res = await withToast(setEventRsvpAction(eventId, status), { success: (res) => res.status === "WAITLIST" ? "Masuk waitlist" : "RSVP tersimpan", });
-      if (!res.ok) return;
-    });
-  }
-
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button
-        size="sm"
-        variant={current === "GOING" || current === "WAITLIST" ? "default" : "secondary"}
-        disabled={pending}
-        onClick={() => set("GOING")}
-      >
-        Going
-      </Button>
-      <Button
-        size="sm"
-        variant={current === "NOT_GOING" ? "default" : "secondary"}
-        disabled={pending}
-        onClick={() => set("NOT_GOING")}
-      >
-        Skip
-      </Button>
-      <a
-        href={`https://wa.me/?text=${encodeURIComponent(`Join event PB Wisdom: ${shareUrl}`)}`}
-        target="_blank"
-        rel="noreferrer"
-        className="ml-auto inline-flex h-9 items-center gap-1 rounded-lg border border-navy/10 px-3 text-xs text-accent-ink"
-      >
-        <Share2 className="h-3.5 w-3.5" /> Share
-      </a>
+    <div className="flex items-center gap-2">
+      <div className="flex-1">
+        <RsvpSegment<RsvpStatus>
+          value={current === "WAITLIST" ? "GOING" : current}
+          disabled={pending}
+          onChange={(status) =>
+            start(async () => {
+              await withToast(setEventRsvpAction(eventId, status), {
+                success: (res) =>
+                  res.status === "WAITLIST" ? "Penuh, kamu masuk waitlist" : res.status === "GOING" ? "Kamu ikut event ini" : "Ditandai tidak ikut",
+              });
+            })
+          }
+          options={[
+            {
+              value: "GOING",
+              label: current === "WAITLIST" ? "Waitlist" : "Ikut",
+              activeClass: "bg-accent text-navy shadow-[0_6px_14px_rgba(238,159,72,0.35)]",
+            },
+            { value: "NOT_GOING", label: "Tidak" },
+          ]}
+        />
+      </div>
+      {shareUrl && (
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(`Join event PB Wisdom: ${shareUrl}`)}`}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Bagikan ke WhatsApp"
+          className="flex size-12 shrink-0 items-center justify-center rounded-full bg-cream text-navy transition hover:bg-sand"
+        >
+          <Share2 className="size-4" />
+        </a>
+      )}
     </div>
   );
 }

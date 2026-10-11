@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { EventActions } from "@/components/events/event-actions";
 import { EventGallery } from "@/components/events/event-gallery";
 import { formatClub } from "@/lib/time";
+import { AGENDA_KINDS } from "@/lib/agenda";
 
 export default async function EventDetailPage({
   params,
@@ -40,7 +41,7 @@ export default async function EventDetailPage({
   return (
     <>
       <div className="mb-4 space-y-2">
-        <Badge>{event.type}</Badge>
+        <Badge className={AGENDA_KINDS[event.type].chip}>{AGENDA_KINDS[event.type].label}</Badge>
         <h1 className="text-2xl font-bold text-navy">{event.title}</h1>
         <p className="text-sm text-accent-ink">
           {formatClub(event.startsAt, "EEEE, d MMM yyyy · HH:mm", {
