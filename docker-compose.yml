@@ -1,16 +1,78 @@
+# Local stack: the production image + Postgres, for testing everything in
+# Docker. Not for the VPS (that is docker-compose.prod.yml).
+#
+#   bun run docker:up      build and start   -> http://localhost:3000
+#   bun run docker:seed    load the demo club data (wipes the database)
+#   bun run docker:reset   empty database, migrate, seed
+#   bun run docker:down    stop (data is kept in the pgdata volume)
+
+name: pb-wisdom-local
+
+x-database-url: &database-url
+  DATABASE_URL: postgresql://pbwisdom:pbwisdom@db:5432/pbwisdom?schema=public
+
 services:
-  postgres:
+  db:
     image: postgres:16-alpine
-    container_name: pb-wisdom-db
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: pbwisdom
       POSTGRES_PASSWORD: pbwisdom
       POSTGRES_DB: pbwisdom
     volumes:
-      - pb_wisdom_pg:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+    # 5433 on the host: 5432 is often taken by a locally installed Postgres.
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pbwisdom -d pbwisdom"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    image: pb-wisdom:local
+    command: ["prisma", "migrate", "deploy"]
+    environment: *database-url
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    image: pb-wisdom:local
+    build:
+      context: .
+      args:
+        DEPLOYMENT_ID: local
+    environment:
+      <<: *database-url
+      AUTH_SECRET: local-docker-secret-change-me-0123456789
+      AUTH_URL: http://localhost:3000
+      CRON_SECRET: local-cron-secret
+      AUTH_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID:-}
+      AUTH_GOOGLE_CLIENT_SECRET: ${AUTH_GOOGLE_CLIENT_SECRET:-}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # On demand only (`docker compose run --rm seed`): uses the build stage,
+  # which has the full toolchain (bun, tsx, dev dependencies).
+  seed:
+    profiles: [tools]
+    build:
+      context: .
+      target: build
+      args:
+        DEPLOYMENT_ID: local
+    image: pb-wisdom:local-tools
+    command: ["bun", "run", "db:seed"]
+    environment:
+      <<: *database-url
+      NODE_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
-  pb_wisdom_pg:
+  pgdata:

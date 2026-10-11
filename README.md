@@ -10,7 +10,29 @@ Internal club companion for **PB Wisdom Medan** — members & admins only. No pu
 - **UI:** Tailwind + shadcn-style components, Motion, mobile bottom nav, PWA manifest
 - **Hosting:** Docker on a VPS behind Caddy — see [DEPLOY.md](DEPLOY.md)
 
-## Local setup
+## Local setup (Docker)
+
+Runs the production image with its own Postgres; only Docker is needed.
+
+```bash
+bun run docker:reset   # empty database, migrations, app, demo data
+```
+
+Open [http://localhost:3000](http://localhost:3000) and log in with a seed
+account below.
+
+| Command | Does |
+|---|---|
+| `bun run docker:up` | Rebuild the image after code changes and restart |
+| `bun run docker:seed` | Reload the demo data (wipes the database) |
+| `bun run docker:reset` | Delete the database volume and start over |
+| `bun run docker:logs` | Follow the app logs |
+| `bun run docker:down` | Stop (data is kept) |
+
+The database is reachable from the host at
+`postgresql://pbwisdom:pbwisdom@localhost:5433/pbwisdom` (e.g. for a SQL client).
+
+## Local setup (without Docker, hot reload)
 
 ```bash
 # 1. Install
@@ -20,10 +42,8 @@ bun install
 cp .env.example .env
 # set AUTH_SECRET (openssl rand -base64 32)
 
-# 3. Start Postgres (pick one)
-# Docker:
-bun run db:up
-# Or Homebrew:
+# 3. Start Postgres, e.g. the Docker one (`docker compose up -d db`, then use
+#    port 5433 in DATABASE_URL), or Homebrew:
 # brew services start postgresql@16
 # createuser -s pbwisdom; createdb -O pbwisdom pbwisdom
 # psql postgres -c "ALTER USER pbwisdom WITH PASSWORD 'pbwisdom';"
@@ -113,7 +133,7 @@ to `main`. Setup, secrets, data migration, backups and rollback:
 |--------|---------|
 | `bun run dev` | Next.js dev server |
 | `bun run lint` / `bun run typecheck` | ESLint / TypeScript |
-| `bun run db:up` | Local Docker Postgres |
+| `bun run docker:*` | Local Docker stack (see above) |
 | `bun run db:migrate` | Create + apply a migration (dev) |
 | `bun run db:deploy` | Apply pending migrations |
 | `bun run db:seed` | Seed mock club (wipes data) |
