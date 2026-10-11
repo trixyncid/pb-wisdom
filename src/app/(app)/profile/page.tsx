@@ -27,7 +27,6 @@ export default async function ProfilePage() {
             nickname: profile?.nickname ?? "",
             phone: profile?.phone ?? "+62",
             imageUrl: avatarUrl(session.user.id, profile?.updatedAt),
-            locale: session.user.locale ?? "id",
             email: session.user.email,
             role: session.user.role,
           }}

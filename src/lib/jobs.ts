@@ -20,6 +20,8 @@ export async function ensureUpcomingOccurrences() {
   });
 }
 
+const REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
 export async function sendOverdueFeeReminders() {
   const now = new Date();
   const periods = await prisma.feePeriod.findMany({
@@ -31,7 +33,7 @@ export async function sendOverdueFeeReminders() {
     },
   });
 
-  const data = periods.flatMap((period) =>
+  const candidates = periods.flatMap((period) =>
     period.dues.map((due) => ({
       userId: due.userId,
       type: "IURAN" as const,
@@ -40,6 +42,20 @@ export async function sendOverdueFeeReminders() {
       href: "/profile/iuran",
     })),
   );
+  if (candidates.length === 0) return { ok: true, count: 0 };
+
+  // At most one reminder per member and period each week, instead of daily.
+  const recent = await prisma.notification.findMany({
+    where: {
+      type: "IURAN",
+      userId: { in: [...new Set(candidates.map((c) => c.userId))] },
+      title: { in: [...new Set(candidates.map((c) => c.title))] },
+      createdAt: { gte: new Date(now.getTime() - REMINDER_INTERVAL_MS) },
+    },
+    select: { userId: true, title: true },
+  });
+  const sent = new Set(recent.map((r) => `${r.userId}|${r.title}`));
+  const data = candidates.filter((c) => !sent.has(`${c.userId}|${c.title}`));
   if (data.length) await prisma.notification.createMany({ data });
 
   return { ok: true, count: data.length };

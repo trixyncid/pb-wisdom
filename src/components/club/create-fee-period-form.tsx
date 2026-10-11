@@ -8,12 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function CreateFeePeriodForm() {
-  const [label, setLabel] = useState("Oktober 2026");
-  const [amount, setAmount] = useState("150000");
-  const [dueDate, setDueDate] = useState("2026-10-10");
-  const [instructions, setInstructions] = useState(
-    "BCA 1234567890 a.n. PB Wisdom\nQRIS: lihat grup WA",
+  const [label, setLabel] = useState(() =>
+    new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(new Date()),
   );
+  const [amount, setAmount] = useState("150000");
+  const [dueDate, setDueDate] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [pending, start] = useTransition();
 
   return (
@@ -33,6 +33,7 @@ export function CreateFeePeriodForm() {
             return;
           }
           toast.success("Periode iuran dibuka");
+          setDueDate("");
         });
       }}
     >
@@ -56,6 +57,7 @@ export function CreateFeePeriodForm() {
           className="min-h-20 w-full rounded-xl border border-[#0b2a4a]/10 bg-[#f3f8fc] px-3 py-2 text-sm text-[#0b2a4a]"
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
+          placeholder="Contoh: BCA 1234567890 a.n. PB Wisdom"
           required
         />
       </div>

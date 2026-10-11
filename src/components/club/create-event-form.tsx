@@ -11,7 +11,7 @@ import type { EventType } from "@prisma/client";
 export function CreateEventForm() {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<EventType>("SPARRING");
-  const [startsAt, setStartsAt] = useState("2026-09-28T16:00");
+  const [startsAt, setStartsAt] = useState("");
   const [location, setLocation] = useState("GOR Merdeka Medan");
   const [capacity, setCapacity] = useState("24");
   const [extraFee, setExtraFee] = useState("");

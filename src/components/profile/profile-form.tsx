@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SquareImageUpload } from "@/components/profile/square-image-upload";
 import { PhoneInput } from "@/components/profile/phone-input";
-import { LanguageSelect } from "@/components/profile/language-select";
 
 export function ProfileForm({
   initial,
@@ -18,7 +17,6 @@ export function ProfileForm({
     nickname: string;
     phone: string;
     imageUrl: string;
-    locale: string;
     email: string;
     role: string;
   };
@@ -26,7 +24,6 @@ export function ProfileForm({
   const [nickname, setNickname] = useState(initial.nickname);
   const [phone, setPhone] = useState(initial.phone || "+62");
   const [imageUrl, setImageUrl] = useState(initial.imageUrl);
-  const [locale, setLocale] = useState<"id" | "en">(initial.locale === "en" ? "en" : "id");
   const [pending, start] = useTransition();
   const [photoPending, startPhoto] = useTransition();
 
@@ -37,7 +34,6 @@ export function ProfileForm({
         nickname,
         phone: phone === "+62" || phone.length <= 3 ? "" : phone,
         imageUrl: dataUrl,
-        locale,
       });
       if (!res.ok) {
         toast.error(res.error);
@@ -85,7 +81,6 @@ export function ProfileForm({
             const res = await updateProfileAction({
               nickname,
               phone: phone === "+62" || phone.length <= 3 ? "" : phone,
-              locale,
             });
             if (!res.ok) {
               toast.error(res.error);
@@ -107,11 +102,6 @@ export function ProfileForm({
         <div className="space-y-1.5">
           <Label>WhatsApp / Phone</Label>
           <PhoneInput value={phone} onChange={setPhone} />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Language</Label>
-          <LanguageSelect value={locale} onChange={(v) => setLocale(v === "en" ? "en" : "id")} />
         </div>
 
         <Button type="submit" disabled={pending} className="mt-1 w-full">

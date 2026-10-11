@@ -17,7 +17,7 @@ export function LogMatchForm({
   currentUserId: string;
 }) {
   const [type, setType] = useState<"SINGLES" | "DOUBLES">("SINGLES");
-  const [score, setScore] = useState("21-19, 21-17");
+  const [score, setScore] = useState("");
   const [t1a, setT1a] = useState(currentUserId);
   const [t1b, setT1b] = useState("");
   const [t2a, setT2a] = useState("");
@@ -42,6 +42,7 @@ export function LogMatchForm({
         return;
       }
       toast.success("Match dicatat");
+      setScore("");
     });
   }
 
@@ -87,8 +88,14 @@ export function LogMatchForm({
         </Button>
       </div>
       <div className="space-y-1">
-        <Label>Skor</Label>
-        <Input value={score} onChange={(e) => setScore(e.target.value)} />
+        <Label htmlFor="match-score">Skor (Team 1 – Team 2)</Label>
+        <Input
+          id="match-score"
+          value={score}
+          onChange={(e) => setScore(e.target.value)}
+          placeholder="21-19, 21-17"
+          required
+        />
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="space-y-2">

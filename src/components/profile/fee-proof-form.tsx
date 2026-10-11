@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function FeeProofForm({ dueId }: { dueId: string }) {
-  const [url, setUrl] = useState("https://placehold.co/400x600/png?text=Bukti");
+  const [url, setUrl] = useState("");
   const [pending, start] = useTransition();
 
   return (
@@ -15,7 +15,8 @@ export function FeeProofForm({ dueId }: { dueId: string }) {
       <Input
         value={url}
         onChange={(e) => setUrl(e.target.value)}
-        placeholder="URL bukti transfer"
+        placeholder="https://… (link foto bukti transfer)"
+        type="url"
       />
       <Button
         size="sm"

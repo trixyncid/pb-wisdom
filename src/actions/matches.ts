@@ -1,39 +1,68 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { requireMember } from "@/lib/authz";
 import { ActionError, runAction } from "@/lib/action-result";
 import { prisma } from "@/lib/db";
-import type { MatchType } from "@prisma/client";
 import { demoActionResult } from "@/lib/demo/guard";
 
-export async function logMatchAction(input: {
-  type: MatchType;
-  score: string;
-  team1Ids: string[];
-  team2Ids: string[];
-  winnerTeam: 1 | 2;
-  eventId?: string;
-  notes?: string;
-}) {
+const playerId = z.string().min(1, "Pilih semua pemain");
+
+const matchSchema = z.object({
+  type: z.enum(["SINGLES", "DOUBLES"]),
+  // One to three games, e.g. "21-19, 18-21, 21-15".
+  score: z
+    .string()
+    .trim()
+    .regex(/^\d{1,2}-\d{1,2}(\s*,\s*\d{1,2}-\d{1,2}){0,2}$/, "Format skor: 21-19, 21-17"),
+  team1Ids: z.array(playerId).min(1).max(2),
+  team2Ids: z.array(playerId).min(1).max(2),
+  winnerTeam: z.union([z.literal(1), z.literal(2)]),
+  eventId: z.string().optional(),
+  notes: z.string().max(500).optional(),
+});
+
+/** Games won by each team; throws if a game is a tie or the winner lost more games. */
+function checkScore(score: string, winnerTeam: 1 | 2) {
+  let team1 = 0;
+  let team2 = 0;
+  for (const game of score.split(",")) {
+    const [a, b] = game.trim().split("-").map(Number);
+    if (a === b) throw new ActionError("Satu game tidak bisa seri");
+    if (a > b) team1 += 1;
+    else team2 += 1;
+  }
+  const winnerGames = winnerTeam === 1 ? team1 : team2;
+  const loserGames = winnerTeam === 1 ? team2 : team1;
+  if (winnerGames <= loserGames) {
+    throw new ActionError("Pemenang tidak sesuai dengan skor");
+  }
+}
+
+export async function logMatchAction(input: z.input<typeof matchSchema>) {
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
     const session = await requireMember();
+    const data = matchSchema.parse(input);
+    const isAdmin = session.user.role === "ADMIN";
 
-    const allIds = [...input.team1Ids, ...input.team2Ids];
+    const size = data.type === "SINGLES" ? 1 : 2;
+    if (data.team1Ids.length !== size || data.team2Ids.length !== size) {
+      throw new ActionError(
+        data.type === "SINGLES" ? "Single harus 1 lawan 1" : "Double harus 2 lawan 2",
+      );
+    }
+    const allIds = [...data.team1Ids, ...data.team2Ids];
     if (new Set(allIds).size !== allIds.length) {
       throw new ActionError("Pemain tidak boleh dobel");
     }
-    if (input.type === "SINGLES" && (input.team1Ids.length !== 1 || input.team2Ids.length !== 1)) {
-      throw new ActionError("Single harus 1 lawan 1");
-    }
-    if (input.type === "DOUBLES" && (input.team1Ids.length !== 2 || input.team2Ids.length !== 2)) {
-      throw new ActionError("Double harus 2 lawan 2");
-    }
-    if (session.user.role !== "ADMIN" && !allIds.includes(session.user.id)) {
+    if (!isAdmin && !allIds.includes(session.user.id)) {
       throw new ActionError("Kamu hanya bisa mencatat match yang kamu mainkan");
     }
+    checkScore(data.score, data.winnerTeam);
+
     const approvedPlayers = await prisma.user.count({
       where: { id: { in: allIds }, role: { in: ["MEMBER", "ADMIN"] } },
     });
@@ -41,59 +70,46 @@ export async function logMatchAction(input: {
       throw new ActionError("Semua pemain harus member yang sudah disetujui");
     }
 
-    const match = await prisma.match.create({
-      data: {
-        type: input.type,
-        score: input.score,
-        eventId: input.eventId || null,
-        notes: input.notes,
-        loggedById: session.user.id,
-        status: "PENDING",
-        players: {
-          create: [
-            ...input.team1Ids.map((userId) => ({
-              userId,
-              team: 1,
-              won: input.winnerTeam === 1,
-              confirmed: userId === session.user.id,
-            })),
-            ...input.team2Ids.map((userId) => ({
-              userId,
-              team: 2,
-              won: input.winnerTeam === 2,
-              confirmed: userId === session.user.id,
-            })),
-          ],
+    // Admin entries are trusted and confirmed at once; otherwise every other
+    // player has to confirm before the match counts.
+    const match = await prisma.$transaction(async (tx) => {
+      const created = await tx.match.create({
+        data: {
+          type: data.type,
+          score: data.score,
+          eventId: data.eventId || null,
+          notes: data.notes,
+          loggedById: session.user.id,
+          status: isAdmin ? "CONFIRMED" : "PENDING",
+          players: {
+            create: allIds.map((userId) => {
+              const team = data.team1Ids.includes(userId) ? 1 : 2;
+              return {
+                userId,
+                team,
+                won: data.winnerTeam === team,
+                confirmed: isAdmin || userId === session.user.id,
+              };
+            }),
+          },
         },
-      },
-      include: { players: true },
+        select: { id: true },
+      });
+
+      const toConfirm = isAdmin ? [] : allIds.filter((id) => id !== session.user.id);
+      if (toConfirm.length) {
+        await tx.notification.createMany({
+          data: toConfirm.map((userId) => ({
+            userId,
+            type: "MATCH" as const,
+            title: "Konfirmasi hasil match",
+            body: `Skor: ${data.score}. Buka tab Play untuk konfirmasi.`,
+            href: "/play",
+          })),
+        });
+      }
+      return created;
     });
-
-    const others = allIds.filter((id) => id !== session.user.id);
-    if (others.length) {
-      await prisma.notification.createMany({
-        data: others.map((userId) => ({
-          userId,
-          type: "MATCH" as const,
-          title: "Konfirmasi hasil match",
-          body: `Skor: ${input.score}. Buka tab Play untuk konfirmasi.`,
-          href: "/play",
-        })),
-      });
-    }
-
-    // Auto-confirm if admin logged or all players already confirmed (logger only)
-    const confirmedCount = match.players.filter((p) => p.confirmed).length;
-    if (session.user.role === "ADMIN" || confirmedCount === match.players.length) {
-      await prisma.match.update({
-        where: { id: match.id },
-        data: { status: "CONFIRMED" },
-      });
-      await prisma.matchPlayer.updateMany({
-        where: { matchId: match.id },
-        data: { confirmed: true },
-      });
-    }
 
     revalidatePath("/play");
     revalidatePath("/");
@@ -107,34 +123,38 @@ export async function confirmMatchAction(matchId: string, accept: boolean) {
     if (__demo) return __demo;
     const session = await requireMember();
 
-    const player = await prisma.matchPlayer.findUnique({
-      where: {
-        matchId_userId: { matchId, userId: session.user.id },
-      },
-    });
-    if (!player) throw new ActionError("Kamu bukan pemain di match ini");
+    await prisma.$transaction(async (tx) => {
+      // Lock the match so a dispute and the last confirmation cannot race.
+      const locked = await tx.$queryRaw<{ status: string }[]>`
+        SELECT "status"::text AS "status" FROM "Match" WHERE "id" = ${matchId} FOR UPDATE
+      `;
+      if (!locked[0]) throw new ActionError("Match tidak ditemukan");
+      // Only pending matches can change. Without this, any player could turn a
+      // confirmed loss into a dispute and drop it from the leaderboard.
+      if (locked[0].status !== "PENDING") {
+        throw new ActionError("Match ini sudah tidak menunggu konfirmasi");
+      }
 
-    if (!accept) {
-      await prisma.match.update({
-        where: { id: matchId },
-        data: { status: "DISPUTED" },
+      const player = await tx.matchPlayer.findUnique({
+        where: { matchId_userId: { matchId, userId: session.user.id } },
+        select: { id: true },
       });
-      revalidatePath("/play");
-      return {};
-    }
+      if (!player) throw new ActionError("Kamu bukan pemain di match ini");
 
-    await prisma.matchPlayer.update({
-      where: { id: player.id },
-      data: { confirmed: true },
-    });
+      if (!accept) {
+        await tx.matchPlayer.update({ where: { id: player.id }, data: { confirmed: false } });
+        await tx.match.update({ where: { id: matchId }, data: { status: "DISPUTED" } });
+        return;
+      }
 
-    const players = await prisma.matchPlayer.findMany({ where: { matchId } });
-    if (players.every((p) => p.confirmed)) {
-      await prisma.match.update({
-        where: { id: matchId },
-        data: { status: "CONFIRMED" },
+      await tx.matchPlayer.update({ where: { id: player.id }, data: { confirmed: true } });
+      const unconfirmed = await tx.matchPlayer.count({
+        where: { matchId, confirmed: false },
       });
-    }
+      if (unconfirmed === 0) {
+        await tx.match.update({ where: { id: matchId }, data: { status: "CONFIRMED" } });
+      }
+    });
 
     revalidatePath("/play");
     revalidatePath("/");

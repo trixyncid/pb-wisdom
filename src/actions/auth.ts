@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { hash } from "bcryptjs";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireAdmin, requireUser } from "@/lib/authz";
 import { ActionError, runAction } from "@/lib/action-result";
@@ -28,45 +29,57 @@ export async function registerAction(input: z.infer<typeof registerSchema>) {
     }
     const data = registerSchema.parse(input);
     const email = data.email.toLowerCase();
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      throw new ActionError("Email sudah terdaftar");
-    }
-
-    let autoApprove = false;
-    if (data.inviteCode) {
-      const invite = await prisma.invite.findUnique({
-        where: { code: data.inviteCode.toUpperCase() },
-      });
-      if (!invite || invite.remainingUses <= 0) {
-        throw new ActionError("Kode undangan tidak valid");
-      }
-      if (invite.expiresAt && invite.expiresAt < new Date()) {
-        throw new ActionError("Kode undangan sudah kedaluwarsa");
-      }
-      autoApprove = invite.autoApprove;
-      await prisma.invite.update({
-        where: { id: invite.id },
-        data: { remainingUses: { decrement: 1 } },
-      });
-    }
-
+    const code = data.inviteCode?.trim().toUpperCase() || null;
     const passwordHash = await hash(data.password, 10);
-    await prisma.user.create({
-      data: {
-        email,
-        name: data.name,
-        passwordHash,
-        role: autoApprove ? "MEMBER" : "PENDING",
-        profile: {
-          create: {
-            nickname: data.name.split(" ")[0],
-            imageUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(data.name)}`,
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        let autoApprove = false;
+        if (code) {
+          // Check and consume a use in one conditional update, so parallel
+          // registrations cannot push remainingUses below zero.
+          const used = await tx.invite.updateMany({
+            where: {
+              code,
+              remainingUses: { gt: 0 },
+              OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+            },
+            data: { remainingUses: { decrement: 1 } },
+          });
+          if (used.count === 0) {
+            throw new ActionError("Kode undangan tidak valid atau sudah habis");
+          }
+          const invite = await tx.invite.findUnique({
+            where: { code },
+            select: { autoApprove: true },
+          });
+          autoApprove = invite?.autoApprove ?? false;
+        }
+
+        await tx.user.create({
+          data: {
+            email,
+            name: data.name,
+            passwordHash,
+            role: autoApprove ? "MEMBER" : "PENDING",
+            profile: {
+              create: {
+                nickname: data.name.split(" ")[0],
+                imageUrl: `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(data.name)}`,
+              },
+            },
           },
-        },
-      },
-    });
+          select: { id: true },
+        });
+      });
+    } catch (err) {
+      // The unique index decides, even when two sign-ups race; the transaction
+      // also gives back the invite use.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new ActionError("Email sudah terdaftar");
+      }
+      throw err;
+    }
 
     return {};
   });
@@ -82,7 +95,6 @@ const profileSchema = z.object({
     .max(200_000, "Foto terlalu besar")
     .regex(/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/, "Format foto tidak valid")
     .optional(),
-  locale: z.enum(["id", "en"]).optional(),
 });
 
 export async function updateProfileAction(input: z.infer<typeof profileSchema>) {
@@ -96,7 +108,6 @@ export async function updateProfileAction(input: z.infer<typeof profileSchema>) 
       where: { id: session.user.id },
       data: {
         name: data.nickname,
-        ...(data.locale ? { locale: data.locale } : {}),
         profile: {
           upsert: {
             create: {
@@ -125,24 +136,32 @@ export async function approveMemberAction(userId: string, approve: boolean) {
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
-    await requireAdmin();
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { role: approve ? "MEMBER" : "REJECTED" },
-    });
-
-    if (approve) {
-      await prisma.notification.create({
-        data: {
-          userId,
-          type: "SYSTEM",
-          title: "Welcome to PB Wisdom!",
-          body: "Akunmu sudah disetujui. Selamat bergabung.",
-          href: "/",
-        },
-      });
+    const session = await requireAdmin();
+    if (userId === session.user.id) {
+      throw new ActionError("Kamu tidak bisa mengubah status akunmu sendiri");
     }
+
+    await prisma.$transaction(async (tx) => {
+      // Approve/reject is for members only; it must never demote an admin.
+      const changed = await tx.user.updateMany({
+        where: { id: userId, role: { not: "ADMIN" } },
+        data: { role: approve ? "MEMBER" : "REJECTED" },
+      });
+      if (changed.count === 0) {
+        throw new ActionError("Akun ini tidak bisa diubah");
+      }
+      if (approve) {
+        await tx.notification.create({
+          data: {
+            userId,
+            type: "SYSTEM",
+            title: "Welcome to PB Wisdom!",
+            body: "Akunmu sudah disetujui. Selamat bergabung.",
+            href: "/",
+          },
+        });
+      }
+    });
 
     revalidatePath("/club");
     revalidatePath("/club/members");
@@ -174,14 +193,21 @@ export async function regenerateInviteAction() {
     const session = await requireAdmin();
 
     const code = `WISDOM${randomBytes(4).toString("hex").toUpperCase()}`;
-    const invite = await prisma.invite.create({
-      data: {
-        code,
-        type: "CLUB",
-        remainingUses: 50,
-        createdById: session.user.id,
-      },
-    });
+    // Regenerating revokes the previous club codes, otherwise they stay valid.
+    const [, invite] = await prisma.$transaction([
+      prisma.invite.updateMany({
+        where: { type: "CLUB", remainingUses: { gt: 0 } },
+        data: { remainingUses: 0 },
+      }),
+      prisma.invite.create({
+        data: {
+          code,
+          type: "CLUB",
+          remainingUses: 50,
+          createdById: session.user.id,
+        },
+      }),
+    ]);
     revalidatePath("/club");
     return { code: invite.code };
   });
