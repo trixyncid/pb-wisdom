@@ -187,11 +187,12 @@ const nextAuth = NextAuth({
           where: { id: token.id },
           select: roleSelect,
         });
-        if (dbUser) {
-          token.role = dbUser.role;
-          token.locale = dbUser.locale;
-          token.name = dbUser.name;
-        }
+        // The account no longer exists (deleted, or the database was reset):
+        // end the session instead of trusting the role cached in the cookie.
+        if (!dbUser) return null;
+        token.role = dbUser.role;
+        token.locale = dbUser.locale;
+        token.name = dbUser.name;
       }
       if (trigger === "update" && session?.locale) {
         token.locale = session.locale;
