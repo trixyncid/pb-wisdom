@@ -13,13 +13,12 @@ export default async function HomePage() {
   after(ensureUpcomingOccurrences);
 
   const userId = session?.user?.id;
-  const isAdmin = session?.user?.role === "ADMIN";
   const isMember =
     session?.user?.role === "MEMBER" || session?.user?.role === "ADMIN";
 
-  // Each view fetches only what it renders: members never see recent
-  // matches/photos, guests never see fees or pending counts.
-  const [occurrence, leaderboard, member, guest] = await Promise.all([
+  // Each view fetches only what it renders; guests also get recent matches
+  // and photos.
+  const [occurrence, leaderboard, guest] = await Promise.all([
     prisma.trainingOccurrence.findFirst({
       where: { date: { gte: startOfClubTodayKey() } },
       orderBy: { date: "asc" },
@@ -32,11 +31,8 @@ export default async function HomePage() {
       },
     }),
     getLeaderboard("ALL", 10),
-    isMember && userId ? loadMemberData(userId, isAdmin) : null,
     isMember ? null : loadGuestData(),
   ]);
-  const { announcement, feeDue, pendingMatchCount, pendingMembers, pendingFees } =
-    member ?? EMPTY_MEMBER;
   const { recentMatches, photos, memberCount } = guest ?? EMPTY_GUEST;
 
   const iAmGoing = Boolean(
@@ -57,15 +53,9 @@ export default async function HomePage() {
     return (
       <MemberHome
         firstName={(session?.user?.name ?? "Member").split(" ")[0]}
-        isAdmin={isAdmin}
-        announcementTitle={announcement?.title ?? null}
-        fee={feeDue ? { label: feeDue.period.label, status: feeDue.status } : null}
         occurrence={nextTraining}
         goingCount={goingCount}
         iAmGoing={iAmGoing}
-        pendingMatchCount={pendingMatchCount}
-        pendingMembers={pendingMembers}
-        pendingFees={pendingFees}
         rows={leaderboard}
         userId={userId}
       />
@@ -94,27 +84,6 @@ export default async function HomePage() {
   );
 }
 
-async function loadMemberData(userId: string, isAdmin: boolean) {
-  const [announcement, feeDue, pendingMatchCount, pendingMembers, pendingFees] =
-    await Promise.all([
-      prisma.announcement.findFirst({
-        orderBy: { createdAt: "desc" },
-        select: { title: true },
-      }),
-      prisma.feeDue.findFirst({
-        where: { userId },
-        orderBy: { period: { dueDate: "desc" } },
-        include: { period: { select: { label: true } } },
-      }),
-      prisma.matchPlayer.count({
-        where: { userId, confirmed: false, match: { status: "PENDING" } },
-      }),
-      isAdmin ? prisma.user.count({ where: { role: "PENDING" } }) : 0,
-      isAdmin ? prisma.feeDue.count({ where: { status: "SUBMITTED" } }) : 0,
-    ]);
-  return { announcement, feeDue, pendingMatchCount, pendingMembers, pendingFees };
-}
-
 async function loadGuestData() {
   const [recentMatches, photos, memberCount] = await Promise.all([
     prisma.match.findMany({
@@ -138,14 +107,6 @@ async function loadGuestData() {
   ]);
   return { recentMatches, photos, memberCount };
 }
-
-const EMPTY_MEMBER: Awaited<ReturnType<typeof loadMemberData>> = {
-  announcement: null,
-  feeDue: null,
-  pendingMatchCount: 0,
-  pendingMembers: 0,
-  pendingFees: 0,
-};
 
 const EMPTY_GUEST: Awaited<ReturnType<typeof loadGuestData>> = {
   recentMatches: [],

@@ -154,119 +154,28 @@ export function SectionHeader({
   );
 }
 
-function FormDots({ form }: { form: ("W" | "L")[] }) {
-  if (form.length === 0) return null;
-  return (
-    <span className="inline-flex items-center gap-0.5" aria-label={`Form: ${form.join(" ")}`}>
-      {form.map((r, i) => (
-        <span key={`${r}-${i}`} className={cn("size-1.5 rounded-full", r === "W" ? "bg-emerald-500" : "bg-navy/20")} />
-      ))}
-    </span>
-  );
-}
-
-/** Top three, #1 raised in the middle with the 3D trophy behind them. */
-export function Podium({ rows, delay = 0 }: { rows: LeaderboardRow[]; delay?: number }) {
-  if (rows.length === 0) return null;
-  const order = [rows[1], rows[0], rows[2]];
-  return (
-    <div className="rise relative grid grid-cols-3 items-end gap-2.5 pt-10" style={rise(delay)}>
-      <Image
-        src={trophy3d}
-        alt=""
-        width={84}
-        height={151}
-        className="float-tilt prop-shadow pointer-events-none absolute left-1/2 top-0 w-[58px] -translate-x-1/2"
-      />
-      {order.map((row, idx) => {
-        if (!row) return <div key={idx} />;
-        const rank = idx === 1 ? 1 : idx === 0 ? 2 : 3;
-        const first = rank === 1;
-        return (
-          <div
-            key={row.userId}
-            className={cn(
-              "relative flex flex-col items-center rounded-[26px] px-2 text-center",
-              first
-                ? "z-10 bg-navy pb-5 pt-9 text-white shadow-[0_20px_40px_rgba(14,44,60,0.3)]"
-                : "border border-white bg-white/90 pb-4 pt-4 text-navy shadow-[0_10px_28px_rgba(14,44,60,0.06)]",
-            )}
-          >
-            {!first && (
-              <span className="font-display absolute -top-3 flex size-7 items-center justify-center rounded-full bg-sand text-sm font-extrabold text-navy ring-4 ring-cream">
-                {rank}
-              </span>
-            )}
-            <Avatar className={cn(first ? "size-16 ring-4 ring-accent" : "size-12 ring-2 ring-white")}>
-              <AvatarImage src={row.imageUrl ?? undefined} alt="" />
-              <AvatarFallback className="text-navy">{row.nickname.slice(0, 2)}</AvatarFallback>
-            </Avatar>
-            <p className="mt-2 w-full truncate text-sm font-bold">{row.nickname}</p>
-            <p className={cn("font-display font-extrabold", first ? "text-2xl text-accent" : "text-lg text-accent-ink")}>
-              {row.winrate}%
-            </p>
-            <p className={cn("text-[11px]", first ? "text-white/60" : "text-slate-500")}>
-              {row.wins}W · {row.losses}L
-            </p>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Ranked rows as rounded cards (the reference's task list). */
-export function LeaderboardList({
+/**
+ * The leaderboard card (dark, 3D trophy, orange #1) used on both home views.
+ * With `userId`, the member's own row is marked, and shown at the bottom when
+ * they rank below the top 8.
+ */
+export function LeaderboardSpotlight({
   rows,
-  startRank,
-  userId,
   delay = 0,
+  userId,
+  title = "Juara minggu ini",
+  ctaLabel = "Gabung & masuk ranking",
 }: {
   rows: LeaderboardRow[];
-  startRank: number;
-  userId?: string;
   delay?: number;
+  userId?: string;
+  title?: string;
+  ctaLabel?: string;
 }) {
-  return (
-    <div className="flex flex-col gap-2">
-      {rows.map((row, i) => (
-        <Link
-          key={row.userId}
-          href="/play"
-          style={rise(delay + i)}
-          className={cn(
-            "rise group flex items-center gap-3 rounded-[24px] border bg-white/90 p-2.5 pr-3 shadow-[0_8px_24px_rgba(14,44,60,0.05)] transition hover:bg-white",
-            row.userId === userId ? "border-accent/60" : "border-white",
-          )}
-        >
-          <span className="font-display w-7 text-center text-base font-extrabold text-navy/35">{startRank + i}</span>
-          <Avatar className="size-11">
-            <AvatarImage src={row.imageUrl ?? undefined} alt="" />
-            <AvatarFallback className="text-navy">{row.nickname.slice(0, 2)}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-bold text-navy">
-              {row.nickname}
-              {row.userId === userId && <span className="ml-1.5 text-xs font-semibold text-accent-ink">kamu</span>}
-            </p>
-            <p className="flex items-center gap-2 text-xs text-slate-500">
-              {row.wins}W · {row.losses}L <FormDots form={row.form} />
-            </p>
-          </div>
-          <span className="font-display text-lg font-extrabold text-navy">{row.winrate}%</span>
-          <span className="flex size-8 items-center justify-center rounded-full border border-navy/10 text-navy/50 transition group-hover:border-accent group-hover:text-accent-ink">
-            <ArrowUpRight className="size-4" />
-          </span>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
-/** Public home: the leaderboard as the star of the page (dark, with trophy). */
-export function LeaderboardSpotlight({ rows, delay = 0 }: { rows: LeaderboardRow[]; delay?: number }) {
   const [first, second, third] = rows;
   const rest = rows.slice(3, 8);
+  const myIndex = userId ? rows.findIndex((r) => r.userId === userId) : -1;
+  const meBelow = myIndex >= 8 ? { row: rows[myIndex], rank: myIndex + 1 } : null;
   return (
     <section
       className="rise relative overflow-hidden rounded-[34px] bg-navy px-4 pb-5 pt-6 text-white shadow-[0_26px_56px_rgba(14,44,60,0.35)]"
@@ -277,7 +186,7 @@ export function LeaderboardSpotlight({ rows, delay = 0 }: { rows: LeaderboardRow
       <div className="relative flex items-start justify-between gap-3 px-1">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Leaderboard</p>
-          <h2 className="font-display mt-1 text-[1.75rem] font-extrabold leading-tight">Juara minggu ini</h2>
+          <h2 className="font-display mt-1 text-[1.75rem] font-extrabold leading-tight">{title}</h2>
           <p className="mt-1 text-sm text-white/60">Winrate dari match yang dikonfirmasi</p>
         </div>
         <Image
@@ -318,6 +227,11 @@ export function LeaderboardSpotlight({ rows, delay = 0 }: { rows: LeaderboardRow
                     <AvatarFallback className="text-navy">{row.nickname.slice(0, 2)}</AvatarFallback>
                   </Avatar>
                   <p className="mt-2 w-full truncate text-sm font-bold">{row.nickname}</p>
+                  {row.userId === userId && (
+                    <span className={cn("mt-0.5 rounded-full px-2 text-[10px] font-bold uppercase tracking-wide", top ? "bg-navy text-accent" : "bg-accent text-navy")}>
+                      kamu
+                    </span>
+                  )}
                   <p className={cn("font-display font-extrabold", top ? "text-2xl" : "text-lg text-accent")}>{row.winrate}%</p>
                   <p className={cn("text-[11px]", top ? "text-navy/70" : "text-white/50")}>
                     {row.wins}W · {row.losses}L
@@ -327,22 +241,17 @@ export function LeaderboardSpotlight({ rows, delay = 0 }: { rows: LeaderboardRow
             })}
           </div>
 
-          {rest.length > 0 && (
+          {(rest.length > 0 || meBelow) && (
             <ol className="relative mt-4 flex flex-col gap-1.5">
               {rest.map((row, i) => (
-                <li key={row.userId} className="flex items-center gap-3 rounded-[20px] bg-white/[0.06] p-2 pr-3">
-                  <span className="font-display w-6 text-center text-sm font-extrabold text-white/40">{i + 4}</span>
-                  <Avatar className="size-9">
-                    <AvatarImage src={row.imageUrl ?? undefined} alt="" />
-                    <AvatarFallback className="text-navy">{row.nickname.slice(0, 2)}</AvatarFallback>
-                  </Avatar>
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{row.nickname}</span>
-                  <span className="text-xs text-white/50">
-                    {row.wins}W · {row.losses}L
-                  </span>
-                  <span className="font-display w-14 text-right text-base font-extrabold text-accent">{row.winrate}%</span>
-                </li>
+                <SpotlightRow key={row.userId} row={row} rank={i + 4} isMe={row.userId === userId} />
               ))}
+              {meBelow && (
+                <>
+                  <li aria-hidden className="text-center text-xs leading-none text-white/30">···</li>
+                  <SpotlightRow row={meBelow.row} rank={meBelow.rank} isMe />
+                </>
+              )}
             </ol>
           )}
         </>
@@ -354,56 +263,28 @@ export function LeaderboardSpotlight({ rows, delay = 0 }: { rows: LeaderboardRow
         href="/play"
         className="relative mt-5 flex h-12 items-center justify-center gap-2 rounded-full bg-white text-sm font-bold text-navy transition hover:bg-cream"
       >
-        Gabung &amp; masuk ranking <ArrowUpRight className="size-4" />
+        {ctaLabel} <ArrowUpRight className="size-4" />
       </Link>
     </section>
   );
 }
 
-export type AttentionItem = {
-  href: string;
-  title: string;
-  hint: string;
-  icon: React.ComponentType<{ className?: string }>;
-  tone: "alert" | "warm" | "navy";
-};
-
-/** Only what needs action now; renders nothing when all is clear. */
-export function AttentionList({ items, delay = 0 }: { items: AttentionItem[]; delay?: number }) {
-  if (items.length === 0) return null;
+function SpotlightRow({ row, rank, isMe }: { row: LeaderboardRow; rank: number; isMe: boolean }) {
   return (
-    <div className="flex flex-col gap-2">
-      {items.map((item, i) => {
-        const Icon = item.icon;
-        const navy = item.tone === "navy";
-        return (
-          <Link
-            key={item.href + item.title}
-            href={item.href}
-            style={rise(delay + i)}
-            className={cn(
-              "rise flex items-center gap-3 rounded-full p-1.5 pr-4 transition hover:-translate-y-0.5",
-              navy ? "bg-navy text-white shadow-[0_12px_28px_rgba(14,44,60,0.25)]" : "border border-white bg-white/90 text-navy shadow-[0_8px_24px_rgba(14,44,60,0.06)]",
-            )}
-          >
-            <span
-              className={cn(
-                "flex size-11 shrink-0 items-center justify-center rounded-full",
-                item.tone === "alert" && "bg-rose-100 text-rose-600",
-                item.tone === "warm" && "bg-accent-soft text-accent-ink",
-                navy && "bg-accent text-navy",
-              )}
-            >
-              <Icon className="size-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-bold">{item.title}</span>
-              <span className={cn("block truncate text-xs", navy ? "text-white/60" : "text-slate-500")}>{item.hint}</span>
-            </span>
-            <ArrowUpRight className={cn("size-4 shrink-0", navy ? "text-white/60" : "text-navy/40")} />
-          </Link>
-        );
-      })}
-    </div>
+    <li className={cn("flex items-center gap-3 rounded-[20px] p-2 pr-3", isMe ? "bg-white/[0.14] ring-1 ring-accent" : "bg-white/[0.06]")}>
+      <span className="font-display w-6 text-center text-sm font-extrabold text-white/40">{rank}</span>
+      <Avatar className="size-9">
+        <AvatarImage src={row.imageUrl ?? undefined} alt="" />
+        <AvatarFallback className="text-navy">{row.nickname.slice(0, 2)}</AvatarFallback>
+      </Avatar>
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+        {row.nickname}
+        {isMe && <span className="ml-1.5 text-xs font-bold text-accent">kamu</span>}
+      </span>
+      <span className="text-xs text-white/50">
+        {row.wins}W · {row.losses}L
+      </span>
+      <span className="font-display w-14 text-right text-base font-extrabold text-accent">{row.winrate}%</span>
+    </li>
   );
 }
