@@ -2,6 +2,7 @@ import { id as localeId } from "date-fns/locale";
 import { MapPin, Share2, Users } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { appUrl } from "@/lib/app-url";
 import { weekdayLabel } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,7 @@ export default async function JadwalPage() {
     },
   });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const baseUrl = appUrl();
   const loggedIn = Boolean(session?.user);
 
   return (
@@ -62,7 +63,7 @@ export default async function JadwalPage() {
           const going = occ.attendances.filter((a) =>
             ["GOING", "ATTENDED"].includes(a.status),
           );
-          const shareUrl = `${appUrl}/jadwal?occurrence=${occ.id}`;
+          const shareUrl = `${baseUrl}/jadwal?occurrence=${occ.id}`;
           return (
             <Card key={occ.id} className="space-y-3">
               <div className="flex items-start justify-between gap-3">

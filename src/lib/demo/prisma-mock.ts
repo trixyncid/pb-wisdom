@@ -125,13 +125,7 @@ function matchesWhere(row: Dict, where?: Dict): boolean {
   for (const [key, condition] of Object.entries(where)) {
     if (key === "AND" || key === "OR" || key === "NOT") continue;
 
-    const rel = Object.values(RELATIONS).find(() => false);
-    void rel;
-
     // Relation filter on parent model (e.g. user where profile: { status })
-    const modelRels = Object.entries(RELATIONS).flatMap(([, r]) =>
-      Object.entries(r),
-    );
     // Look up relation from current row's model — handled via attach for nested
     if (condition && typeof condition === "object" && !(condition instanceof Date) && !("equals" in (condition as Dict) || "in" in (condition as Dict) || "gte" in (condition as Dict) || "gt" in (condition as Dict) || "lte" in (condition as Dict) || "lt" in (condition as Dict) || "contains" in (condition as Dict) || "not" in (condition as Dict) || "notIn" in (condition as Dict))) {
       // Might be nested field object on same row OR relation — try row field first

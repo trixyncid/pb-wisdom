@@ -2,6 +2,7 @@ import { id as localeId } from "date-fns/locale";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { appUrl } from "@/lib/app-url";
 import { formatRp } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -34,7 +35,7 @@ export default async function EventDetailPage({
   if (!event) notFound();
 
   const mine = event.rsvps.find((r) => r.userId === session.user.id);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const baseUrl = appUrl();
 
   return (
     <>
@@ -65,7 +66,7 @@ export default async function EventDetailPage({
         <EventActions
           eventId={event.id}
           current={mine?.status ?? null}
-          shareUrl={`${appUrl}/events/${event.id}`}
+          shareUrl={`${baseUrl}/events/${event.id}`}
         />
       </Card>
 

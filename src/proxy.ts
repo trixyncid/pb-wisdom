@@ -8,6 +8,7 @@ const alwaysPublic = [
   "/register",
   "/api/auth",
   "/api/cron",
+  "/api/health",
   "/avatar",
 ];
 

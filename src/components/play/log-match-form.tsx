@@ -9,6 +9,34 @@ import { Label } from "@/components/ui/label";
 
 type Member = { id: string; label: string };
 
+// Declared at module level: a component defined inside another is recreated
+// on every render, which resets its state and focus.
+function PlayerSelect({
+  members,
+  value,
+  onChange,
+}: {
+  members: Member[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <select
+      aria-label="Pilih player"
+      className="h-11 w-full rounded-xl border border-[#0b2a4a]/10 bg-[#f3f8fc] px-3 text-sm text-[#0b2a4a]"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">Pilih player</option>
+      {members.map((m) => (
+        <option key={m.id} value={m.id} className="bg-white">
+          {m.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function LogMatchForm({
   members,
   currentUserId,
@@ -46,27 +74,6 @@ export function LogMatchForm({
     });
   }
 
-  const Select = ({
-    value,
-    onChange,
-  }: {
-    value: string;
-    onChange: (v: string) => void;
-  }) => (
-    <select
-      className="h-11 w-full rounded-xl border border-[#0b2a4a]/10 bg-[#f3f8fc] px-3 text-sm text-[#0b2a4a]"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      <option value="">Pilih player</option>
-      {members.map((m) => (
-        <option key={m.id} value={m.id} className="bg-white">
-          {m.label}
-        </option>
-      ))}
-    </select>
-  );
-
   return (
     <form onSubmit={submit} className="space-y-3">
       <div className="flex gap-2">
@@ -100,13 +107,13 @@ export function LogMatchForm({
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="space-y-2">
           <Label>Team 1</Label>
-          <Select value={t1a} onChange={setT1a} />
-          {type === "DOUBLES" && <Select value={t1b} onChange={setT1b} />}
+          <PlayerSelect members={members} value={t1a} onChange={setT1a} />
+          {type === "DOUBLES" && <PlayerSelect members={members} value={t1b} onChange={setT1b} />}
         </div>
         <div className="space-y-2">
           <Label>Team 2</Label>
-          <Select value={t2a} onChange={setT2a} />
-          {type === "DOUBLES" && <Select value={t2b} onChange={setT2b} />}
+          <PlayerSelect members={members} value={t2a} onChange={setT2a} />
+          {type === "DOUBLES" && <PlayerSelect members={members} value={t2b} onChange={setT2b} />}
         </div>
       </div>
       <div className="flex gap-2">

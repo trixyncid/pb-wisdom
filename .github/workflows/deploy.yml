@@ -1,0 +1,134 @@
+name: Deploy
+
+# Builds the image, pushes it to GHCR and rolls it out on the VPS
+# (dc-yukpartneran). Required repository secrets:
+#   VPS_HOST, VPS_USER, VPS_SSH_KEY (private key, no passphrase),
+#   VPS_KNOWN_HOSTS (output of `ssh-keyscan -H <host>` from a trusted machine)
+# The server needs ~/pb-wisdom/.env (see DEPLOY.md) and the `edge` network.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: shadow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/shadow
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bunx tsc --noEmit
+      - name: Migrations match schema.prisma
+        run: >-
+          bunx prisma migrate diff
+          --from-migrations prisma/migrations
+          --to-schema-datamodel prisma/schema.prisma
+          --shadow-database-url "$DATABASE_URL"
+          --exit-code
+
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: meta
+        run: echo "image=${IMAGE,,}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          build-args: DEPLOYMENT_ID=${{ github.sha }}
+          tags: |
+            ${{ steps.meta.outputs.image }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v6
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" | sed 's/\r$//' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Upload compose file
+        run: >-
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes
+          docker-compose.prod.yml
+          "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:pb-wisdom/docker-compose.prod.yml"
+      - name: Roll out
+        env:
+          APP_IMAGE: ${{ needs.build.outputs.image }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "APP_IMAGE='$APP_IMAGE' GHCR_USER='$GHCR_USER' GHCR_TOKEN='$GHCR_TOKEN' bash -s" <<'EOF'
+          set -euo pipefail
+          cd ~/pb-wisdom
+          # The job token is short-lived; nothing long-lived is stored on the server.
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
+          sed -i "s|^APP_IMAGE=.*|APP_IMAGE=$APP_IMAGE|" .env
+          compose() { docker compose -f docker-compose.prod.yml --env-file .env "$@"; }
+          compose pull --quiet
+          compose up -d --remove-orphans
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' "$(compose ps -q app)" 2>/dev/null || true)
+            [ "$status" = healthy ] && break
+            sleep 3
+          done
+          docker logout ghcr.io >/dev/null
+          if [ "$status" != healthy ]; then
+            echo "::error::app is not healthy after deploy (status: $status)"
+            compose logs --tail=80 migrate app
+            exit 1
+          fi
+          docker image prune -f >/dev/null
+          echo "Deployed $APP_IMAGE"
+          EOF

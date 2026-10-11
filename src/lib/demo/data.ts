@@ -461,7 +461,8 @@ const matchPlayers = matches.flatMap((m) =>
   })),
 );
 
-const matchRows = matches.map(({ players: _p, ...m }) => ({
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- drop players from the row
+const matchRows = matches.map(({ players: _players, ...m }) => ({
   ...m,
   createdAt: now,
   updatedAt: now,

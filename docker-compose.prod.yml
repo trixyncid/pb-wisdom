@@ -1,0 +1,128 @@
+# Production stack for the VPS (dc-yukpartneran). Runs next to the
+# yukpartneran stack: it publishes no ports; the shared Caddy reaches the app
+# over the external `edge` network as `pb-wisdom-app:3000`.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d
+#
+# See DEPLOY.md for first-time setup, the Caddy site block and restores.
+
+name: pb-wisdom
+
+# Built from the Postgres settings so the password lives in one place. Use a
+# URL-safe password (hex, as DEPLOY.md suggests).
+x-database-url: &database-url
+  DATABASE_URL: postgresql://${POSTGRES_USER:-pbwisdom}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-pbwisdom}?schema=public&connection_limit=10
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pbwisdom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-pbwisdom}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    shm_size: 128mb
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+    logging: *logging
+
+  # One-shot: applies pending Prisma migrations, then exits. The app only
+  # starts after it succeeds.
+  migrate:
+    image: ${APP_IMAGE:?set APP_IMAGE in .env}
+    command: ["prisma", "migrate", "deploy"]
+    env_file: .env
+    environment: *database-url
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [internal]
+    logging: *logging
+
+  app:
+    image: ${APP_IMAGE:?set APP_IMAGE in .env}
+    restart: unless-stopped
+    env_file: .env
+    environment: *database-url
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Next drains in-flight requests and after() work on SIGTERM.
+    stop_grace_period: 30s
+    mem_limit: 768m
+    networks:
+      internal:
+      edge:
+        aliases: [pb-wisdom-app]
+    logging: *logging
+
+  # Daily job: next training occurrences + overdue fee reminders.
+  cron:
+    image: alpine:3.20
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Jakarta
+      CRON_SECRET: ${CRON_SECRET:?set CRON_SECRET in .env}
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache curl tzdata >/dev/null
+        echo "0 9 * * * curl -fsS -H \"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/cron/daily" > /etc/crontabs/root
+        exec crond -f -l 8
+    depends_on: [app]
+    mem_limit: 32m
+    networks: [internal]
+    logging: *logging
+
+  # Nightly pg_dump with rotation (7 daily, 4 weekly, 3 monthly) into the
+  # `backups` volume. Copy them off the server regularly (see DEPLOY.md).
+  backup:
+    image: prodrigestivill/postgres-backup-local:16
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Jakarta
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-pbwisdom}
+      POSTGRES_USER: ${POSTGRES_USER:-pbwisdom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 3
+    volumes:
+      - backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 128m
+    networks: [internal]
+    logging: *logging
+
+networks:
+  internal: {}
+  # Created once on the host and shared with the yukpartneran Caddy:
+  #   docker network create edge
+  edge:
+    external: true
+    name: edge
+
+volumes:
+  pgdata:
+  backups:
