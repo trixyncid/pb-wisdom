@@ -5,7 +5,8 @@ import { createDemoPrisma } from "@/lib/demo/prisma-mock";
 // Never load these unless a query asks for them explicitly (`select` or
 // `omit: { field: false }`). Avatars are base64 data URLs of ~50-100 KB each
 // and used to be pulled into almost every query and page; they are served by
-// /avatar/[userId] instead; fee proofs (photos too) by /proof/[dueId]. The
+// /avatar/[userId] instead; fee proofs by /proof/[dueId]; event photos by
+// /event-photo/[id]. The
 // password hash is only needed at login.
 const clientOptions = {
   log:
@@ -16,6 +17,7 @@ const clientOptions = {
     user: { image: true, passwordHash: true },
     memberProfile: { imageUrl: true },
     feeDue: { proofUrl: true },
+    eventPhoto: { imageUrl: true },
   },
 } as const;
 

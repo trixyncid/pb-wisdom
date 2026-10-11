@@ -1,21 +1,24 @@
-import { id as localeId } from "date-fns/locale";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { id as localeId } from "date-fns/locale";
+import { CalendarDays, ChevronLeft, Clock, MapPin, Wallet } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { appUrl } from "@/lib/app-url";
-import { formatRp } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { EventActions } from "@/components/events/event-actions";
-import { EventGallery } from "@/components/events/event-gallery";
-import { formatClub } from "@/lib/time";
+import { avatarUrl } from "@/lib/avatar";
 import { AGENDA_KINDS } from "@/lib/agenda";
+import { eventPhotoUrl } from "@/lib/event-photo";
+import { formatClub, hoursAgo } from "@/lib/time";
+import { cn, formatRp } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { EventActions } from "@/components/events/event-actions";
+import { EventCover } from "@/components/events/event-cover";
+import { EventGallery } from "@/components/events/event-gallery";
 
-export default async function EventDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+const person = { id: true, name: true, profile: { select: { nickname: true, updatedAt: true } } } as const;
+const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
+
+export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
   if (!session?.user) return null;
@@ -23,85 +26,128 @@ export default async function EventDetailPage({
   const event = await prisma.event.findUnique({
     where: { id },
     include: {
-      rsvps: {
-        include: { user: { include: { profile: true } } },
-        orderBy: { createdAt: "asc" },
-      },
-      photos: {
-        include: { uploader: { include: { profile: true } } },
-        orderBy: { createdAt: "desc" },
-      },
+      rsvps: { orderBy: { updatedAt: "asc" }, include: { user: { select: person } } },
+      photos: { orderBy: { createdAt: "desc" }, include: { uploader: { select: person } } },
     },
   });
   if (!event) notFound();
 
+  const meta = AGENDA_KINDS[event.type];
+  const Icon = meta.icon;
+  const going = event.rsvps.filter((r) => r.status === "GOING");
+  const waitlist = event.rsvps.filter((r) => r.status === "WAITLIST");
   const mine = event.rsvps.find((r) => r.userId === session.user.id);
-  const baseUrl = appUrl();
+  const name = (u: { name: string | null; profile: { nickname: string } | null }) => u.profile?.nickname ?? u.name ?? "Player";
+  const fill = event.capacity ? Math.min(100, Math.round((going.length / event.capacity) * 100)) : null;
+  const isPast = (event.endsAt ?? event.startsAt) < hoursAgo(3);
 
   return (
-    <>
-      <div className="mb-4 space-y-2">
-        <Badge className={AGENDA_KINDS[event.type].chip}>{AGENDA_KINDS[event.type].label}</Badge>
-        <h1 className="text-2xl font-bold text-navy">{event.title}</h1>
-        <p className="text-sm text-accent-ink">
-          {formatClub(event.startsAt, "EEEE, d MMM yyyy · HH:mm", {
-            locale: localeId,
-          })}
-        </p>
-        <p className="text-sm text-slate-300">{event.location}</p>
-        {event.capacity && (
-          <p className="text-xs text-slate-400">
-            Kapasitas {event.capacity} ·{" "}
-            {event.rsvps.filter((r) => r.status === "GOING").length} going
-          </p>
-        )}
-        {event.extraFee ? (
-          <p className="text-xs text-amber-700">
-            Biaya tambahan {formatRp(event.extraFee)}
-          </p>
-        ) : null}
-        {event.notes && <p className="text-sm text-slate-400">{event.notes}</p>}
-      </div>
+    <div className="flex flex-col gap-5 pt-1">
+      <Link href="/events" className="rise inline-flex w-fit items-center gap-1 rounded-full bg-white/80 py-1.5 pl-2 pr-3.5 text-sm font-semibold text-navy/70 shadow-sm hover:text-navy" style={rise(0)}>
+        <ChevronLeft className="size-4" /> Events
+      </Link>
 
-      <Card className="mb-4">
-        <EventActions
-          eventId={event.id}
-          current={mine?.status ?? null}
-          shareUrl={`${baseUrl}/events/${event.id}`}
-        />
-      </Card>
-
-      <section className="mb-5">
-        <h2 className="mb-2 text-sm font-semibold text-navy">Peserta</h2>
-        <div className="flex flex-wrap gap-1.5">
-          {event.rsvps
-            .filter((r) => r.status === "GOING" || r.status === "WAITLIST")
-            .map((r) => (
-              <Badge
-                key={r.id}
-                className={`normal-case tracking-normal ${
-                  r.status === "WAITLIST" ? "bg-amber-400/15 text-amber-700" : ""
-                }`}
-              >
-                {r.user.profile?.nickname ?? r.user.name}
-                {r.status === "WAITLIST" ? " (wait)" : ""}
-              </Badge>
-            ))}
+      <header className="rise overflow-hidden rounded-[32px] border border-white bg-white/90 shadow-[0_18px_44px_rgba(14,44,60,0.1)]" style={rise(1)}>
+        <div className="relative">
+          <EventCover type={event.type} src={event.photos[0] ? eventPhotoUrl(event.photos[0].id) : null} className="h-48" large />
+          <span className={cn("absolute left-4 top-4 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold shadow-sm", meta.chip)}>
+            <Icon className="size-3.5" /> {meta.label}
+          </span>
+          {isPast && <span className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-navy/60">Selesai</span>}
         </div>
+        <div className="flex flex-col gap-4 p-5">
+          <h1 className="font-display text-[1.75rem] font-extrabold leading-tight text-navy">{event.title}</h1>
+          <ul className="flex flex-col gap-2.5 text-sm text-navy">
+            <li className="flex items-center gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-cream"><CalendarDays className="size-4" /></span>
+              {formatClub(event.startsAt, "EEEE, d MMMM yyyy", { locale: localeId })}
+            </li>
+            <li className="flex items-center gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-cream"><Clock className="size-4" /></span>
+              {formatClub(event.startsAt, "HH:mm")}
+              {event.endsAt ? ` – ${formatClub(event.endsAt, "HH:mm")}` : ""} WIB
+            </li>
+            <li>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-3 hover:text-accent-ink"
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-cream"><MapPin className="size-4" /></span>
+                <span className="underline decoration-navy/20 underline-offset-4">{event.location}</span>
+              </a>
+            </li>
+            {event.extraFee ? (
+              <li className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-ink"><Wallet className="size-4" /></span>
+                Biaya {formatRp(event.extraFee)}
+              </li>
+            ) : null}
+          </ul>
+          {event.notes && <p className="rounded-2xl bg-cream px-4 py-3 text-sm text-navy/80">{event.notes}</p>}
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between text-sm">
+              <span className="font-bold text-navy">{going.length} ikut</span>
+              {event.capacity && <span className="text-slate-500">kuota {event.capacity}{waitlist.length ? ` · ${waitlist.length} waitlist` : ""}</span>}
+            </div>
+            {fill !== null && (
+              <div className="h-2.5 overflow-hidden rounded-full bg-sand" role="progressbar" aria-valuenow={fill} aria-valuemin={0} aria-valuemax={100} aria-label="Kuota terisi">
+                <div className={cn("h-full rounded-full transition-all", fill >= 100 ? "bg-navy" : "bg-accent")} style={{ width: `${fill}%` }} />
+              </div>
+            )}
+          </div>
+
+          {!isPast && (
+            <EventActions eventId={event.id} current={mine?.status ?? null} shareUrl={`${appUrl()}/events/${event.id}`} />
+          )}
+        </div>
+      </header>
+
+      <section className="rise flex flex-col gap-3" style={rise(2)}>
+        <h2 className="px-1 font-display text-xl font-bold text-navy">Peserta</h2>
+        {going.length === 0 ? (
+          <p className="px-1 text-sm text-slate-500">Belum ada yang ikut. Ajak teman dengan tombol share!</p>
+        ) : (
+          <div className="grid grid-cols-4 gap-3 rounded-[26px] border border-white bg-white/90 p-4 shadow-[0_10px_28px_rgba(14,44,60,0.06)] sm:grid-cols-6">
+            {going.map((r) => (
+              <div key={r.id} className="flex flex-col items-center gap-1 text-center">
+                <Avatar className={cn("size-12", r.userId === session.user.id && "ring-2 ring-accent")}>
+                  <AvatarImage src={avatarUrl(r.user.id, r.user.profile?.updatedAt)} alt="" />
+                  <AvatarFallback className="text-navy">{name(r.user).slice(0, 2)}</AvatarFallback>
+                </Avatar>
+                <span className="w-full truncate text-xs font-semibold text-navy">{name(r.user)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {waitlist.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 px-1 text-sm">
+            <span className="font-semibold text-accent-ink">Waitlist:</span>
+            {waitlist.map((r, i) => (
+              <span key={r.id} className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent-ink">
+                {i + 1}. {name(r.user)}
+              </span>
+            ))}
+          </div>
+        )}
       </section>
 
-      <EventGallery
-        eventId={event.id}
-        photos={event.photos.map((p) => ({
-          id: p.id,
-          imageUrl: p.imageUrl,
-          caption: p.caption,
-          uploaderId: p.uploaderId,
-          uploaderName: p.uploader.profile?.nickname ?? p.uploader.name ?? "Player",
-        }))}
-        currentUserId={session.user.id}
-        isAdmin={session.user.role === "ADMIN"}
-      />
-    </>
+      <div className="rise" style={rise(3)}>
+        <EventGallery
+          eventId={event.id}
+          photos={event.photos.map((p) => ({
+            id: p.id,
+            src: eventPhotoUrl(p.id),
+            caption: p.caption,
+            uploaderId: p.uploaderId,
+            uploaderName: name(p.uploader),
+          }))}
+          currentUserId={session.user.id}
+          isAdmin={session.user.role === "ADMIN"}
+        />
+      </div>
+    </div>
   );
 }

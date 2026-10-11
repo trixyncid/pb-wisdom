@@ -6,6 +6,7 @@ import { ensureUpcomingOccurrences } from "@/lib/jobs";
 import { startOfClubTodayKey } from "@/lib/time";
 import { MemberHome } from "@/components/home/member-home";
 import { GuestHome } from "@/components/home/guest-home";
+import { eventPhotoUrl } from "@/lib/event-photo";
 
 export default async function HomePage() {
   const session = await auth();
@@ -79,7 +80,7 @@ export default async function HomePage() {
         team2: m.players.filter((p) => p.team === 2).map(name).join(" & "),
         team1Won: m.players.some((p) => p.team === 1 && p.won),
       }))}
-      photos={photos.map((p) => ({ id: p.id, imageUrl: p.imageUrl, alt: p.caption ?? p.event.title }))}
+      photos={photos.map((p) => ({ id: p.id, imageUrl: eventPhotoUrl(p.id), alt: p.caption ?? p.event.title }))}
     />
   );
 }

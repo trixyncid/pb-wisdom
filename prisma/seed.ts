@@ -266,8 +266,8 @@ async function main() {
     data: {
       title: "Sparring Internal Wisdom",
       type: EventType.SPARRING,
-      startsAt: new Date("2026-09-14T16:00:00"),
-      endsAt: new Date("2026-09-14T19:00:00"),
+      startsAt: new Date("2026-09-14T16:00:00+07:00"),
+      endsAt: new Date("2026-09-14T19:00:00+07:00"),
       location: "GOR Merdeka Medan",
       capacity: 24,
       notes: "Format mix doubles + singles",
@@ -278,7 +278,7 @@ async function main() {
     data: {
       title: "Gathering Ulang Tahun Club",
       type: EventType.GATHERING,
-      startsAt: new Date("2026-09-20T18:00:00"),
+      startsAt: new Date("2026-09-20T18:00:00+07:00"),
       location: "Cafe Shuttle Medan",
       capacity: 40,
       extraFee: 50000,
@@ -289,12 +289,40 @@ async function main() {
     data: {
       title: "Friendly vs Medan Smashers",
       type: EventType.TOURNAMENT,
-      startsAt: new Date("2026-08-24T15:00:00"),
-      endsAt: new Date("2026-08-24T20:00:00"),
+      startsAt: new Date("2026-08-24T15:00:00+07:00"),
+      endsAt: new Date("2026-08-24T20:00:00+07:00"),
       location: "GOR Unimed",
       capacity: 16,
     },
   });
+
+  const upcomingSparring = await prisma.event.create({
+    data: {
+      title: "Sparring vs PB Garuda",
+      type: EventType.SPARRING,
+      startsAt: wibAt(4, "16:00"),
+      endsAt: wibAt(4, "19:00"),
+      location: "GOR Merdeka Medan",
+      capacity: 16,
+      notes: "Ganda campuran, bawa raket cadangan",
+    },
+  });
+  await prisma.event.create({
+    data: {
+      title: "Turnamen Antar Klub Medan",
+      type: EventType.TOURNAMENT,
+      startsAt: wibAt(11, "08:00"),
+      endsAt: wibAt(11, "17:00"),
+      location: "GOR Unimed",
+      capacity: 32,
+      extraFee: 75000,
+    },
+  });
+  for (const u of allMembers.slice(0, 6)) {
+    await prisma.eventRsvp.create({
+      data: { eventId: upcomingSparring.id, userId: u.id, status: RsvpStatus.GOING },
+    });
+  }
 
   for (const u of allMembers.slice(0, 10)) {
     await prisma.eventRsvp.create({
@@ -319,8 +347,7 @@ async function main() {
 
   const photoUrls = [
     "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&q=80",
-    "https://images.unsplash.com/photo-1613918431703-aa507d7208c9?w=800&q=80",
-    "https://images.unsplash.com/photo-1599487488170-d11ec9c172f1?w=800&q=80",
+    "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&q=80",
   ];
 
   for (let i = 0; i < photoUrls.length; i++) {
@@ -450,12 +477,26 @@ async function main() {
   console.log("Pending: pending@pbwisdom.local / WisdomPending1!");
 }
 
+// Club times are WIB (UTC+7, no DST); the seed may run on a UTC machine.
+function wibToday() {
+  const [y, m, d] = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" })
+    .format(new Date())
+    .split("-")
+    .map(Number);
+  return { y, m, d, weekday: new Date(Date.UTC(y, m - 1, d)).getUTCDay() };
+}
+
+/** Next date for a weekday (including today), as the app's day key. */
 function nextWeekday(weekday: number) {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  const diff = (weekday + 7 - d.getDay()) % 7 || 7;
-  d.setDate(d.getDate() + diff);
-  return d;
+  const t = wibToday();
+  return new Date(Date.UTC(t.y, t.m - 1, t.d + ((weekday - t.weekday + 7) % 7), 12));
+}
+
+/** `days` from today at "HH:mm" WIB. */
+function wibAt(days: number, time: string) {
+  const t = wibToday();
+  const day = new Date(Date.UTC(t.y, t.m - 1, t.d + days));
+  return new Date(`${day.toISOString().slice(0, 10)}T${time}:00+07:00`);
 }
 
 main()

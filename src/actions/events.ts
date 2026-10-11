@@ -134,23 +134,31 @@ export async function setEventRsvpAction(eventId: string, status: RsvpStatus) {
   });
 }
 
-export async function addEventPhotoAction(
-  eventId: string,
-  imageUrl: string,
-  caption?: string,
-) {
+// Photos are shrunk in the browser (<=1600px WebP/JPEG); the cap keeps the
+// request under the 1 MB Server Action body limit.
+const photoSchema = z.object({
+  image: z
+    .string()
+    .max(900_000, "Foto terlalu besar")
+    .regex(/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/, "Format foto tidak valid"),
+  caption: z.string().trim().max(140, "Caption terlalu panjang").optional(),
+});
+
+export async function addEventPhotoAction(eventId: string, image: string, caption?: string) {
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
     const session = await requireMember();
+    const data = photoSchema.parse({ image, caption: caption || undefined });
 
     await prisma.eventPhoto.create({
       data: {
         eventId,
         uploaderId: session.user.id,
-        imageUrl,
-        caption,
+        imageUrl: data.image,
+        caption: data.caption,
       },
+      select: { id: true },
     });
 
     revalidatePath(`/events/${eventId}`);

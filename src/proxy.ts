@@ -10,6 +10,7 @@ const alwaysPublic = [
   "/api/cron",
   "/api/health",
   "/avatar",
+  "/event-photo",
 ];
 
 const softPublic = ["/", "/jadwal"];
