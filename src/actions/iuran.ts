@@ -70,19 +70,19 @@ export async function createFeePeriodAction(input: z.input<typeof feePeriodSchem
   });
 }
 
-const proofUrlSchema = z
+// The browser shrinks the photo (max 1600px, WebP/JPEG) before upload. The
+// cap keeps the request under the 1 MB Server Action body limit.
+const proofImageSchema = z
   .string()
-  .trim()
-  .max(2000)
-  .url("Link bukti tidak valid")
-  .refine((u) => u.startsWith("https://"), "Link bukti harus https://");
+  .max(900_000, "Foto bukti terlalu besar")
+  .regex(/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/, "Format foto bukti tidak valid");
 
-export async function submitFeeProofAction(dueId: string, proofUrl: string) {
+export async function submitFeeProofAction(dueId: string, proofImage: string) {
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
     const session = await requireMember();
-    const url = proofUrlSchema.parse(proofUrl);
+    const image = proofImageSchema.parse(proofImage);
 
     // A verified payment is final; re-submitting must not reopen it.
     const updated = await prisma.feeDue.updateMany({
@@ -92,7 +92,7 @@ export async function submitFeeProofAction(dueId: string, proofUrl: string) {
         status: { in: ["UNPAID", "REJECTED", "SUBMITTED"] },
       },
       data: {
-        proofUrl: url,
+        proofUrl: image,
         status: "SUBMITTED",
         submittedAt: new Date(),
         rejectReason: null,

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
-const DATA_URL = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/;
+import { decodeImageDataUrl } from "@/lib/data-url";
 
 export async function GET(
   req: NextRequest,
@@ -21,11 +20,11 @@ export async function GET(
     ? "public, max-age=31536000, immutable"
     : "public, max-age=300";
 
-  const data = DATA_URL.exec(source);
+  const data = decodeImageDataUrl(source);
   if (data) {
-    return new NextResponse(Buffer.from(data[2], "base64"), {
+    return new NextResponse(data.bytes, {
       headers: {
-        "Content-Type": data[1],
+        "Content-Type": data.contentType,
         "Cache-Control": cacheControl,
         "X-Content-Type-Options": "nosniff",
       },

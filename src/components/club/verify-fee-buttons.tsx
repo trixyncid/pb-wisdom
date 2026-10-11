@@ -30,16 +30,18 @@ export function VerifyFeeButtons({ dueId }: { dueId: string }) {
         size="sm"
         variant="danger"
         disabled={pending}
-        onClick={() =>
+        onClick={() => {
+          const reason = window.prompt("Alasan penolakan (dikirim ke member):", "Bukti tidak jelas");
+          if (reason === null) return;
           start(async () => {
-            const res = await verifyFeeAction(dueId, false, "Bukti tidak jelas");
+            const res = await verifyFeeAction(dueId, false, reason);
             if (!res.ok) {
               toast.error(res.error);
               return;
             }
             toast.message("Ditolak");
-          })
-        }
+          });
+        }}
       >
         Reject
       </Button>

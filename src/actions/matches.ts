@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireMember } from "@/lib/authz";
+import { requireAdmin, requireMember } from "@/lib/authz";
 import { ActionError, runAction } from "@/lib/action-result";
 import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
@@ -156,6 +156,57 @@ export async function confirmMatchAction(matchId: string, accept: boolean) {
       }
     });
 
+    revalidatePath("/play");
+    revalidatePath("/");
+    return {};
+  });
+}
+
+/** Admin decision on a disputed match: count it as logged, or delete it. */
+export async function resolveDisputeAction(matchId: string, decision: "CONFIRM" | "DELETE") {
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    await requireAdmin();
+    if (decision !== "CONFIRM" && decision !== "DELETE") {
+      throw new ActionError("Keputusan tidak valid");
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ status: string; score: string }[]>`
+        SELECT "status"::text AS "status", "score" FROM "Match" WHERE "id" = ${matchId} FOR UPDATE
+      `;
+      if (!locked[0]) throw new ActionError("Match tidak ditemukan");
+      if (locked[0].status !== "DISPUTED") {
+        throw new ActionError("Match ini tidak sedang disengketakan");
+      }
+      const players = await tx.matchPlayer.findMany({
+        where: { matchId },
+        select: { userId: true },
+      });
+
+      if (decision === "CONFIRM") {
+        await tx.matchPlayer.updateMany({ where: { matchId }, data: { confirmed: true } });
+        await tx.match.update({ where: { id: matchId }, data: { status: "CONFIRMED" } });
+      } else {
+        await tx.match.delete({ where: { id: matchId } });
+      }
+
+      await tx.notification.createMany({
+        data: players.map((p) => ({
+          userId: p.userId,
+          type: "MATCH" as const,
+          title: decision === "CONFIRM" ? "Sengketa match: hasil disahkan" : "Sengketa match: match dihapus",
+          body:
+            decision === "CONFIRM"
+              ? `Admin mengesahkan skor ${locked[0].score}.`
+              : `Admin menghapus match dengan skor ${locked[0].score}.`,
+          href: "/play",
+        })),
+      });
+    });
+
+    revalidatePath("/club");
     revalidatePath("/play");
     revalidatePath("/");
     return {};

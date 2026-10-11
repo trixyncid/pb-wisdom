@@ -87,7 +87,7 @@ function RegisterForm() {
           <Input
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value)}
-            placeholder="WISDOM2026"
+            placeholder="Kalau ada"
           />
         </div>
         <Button type="submit" className="w-full" disabled={pending}>

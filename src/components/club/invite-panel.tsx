@@ -5,28 +5,27 @@ import { toast } from "sonner";
 import { regenerateInviteAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 
-export function InvitePanel({ code }: { code: string }) {
+export function InvitePanel({ code }: { code: string | null }) {
   const [pending, start] = useTransition();
-  const url =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/register?code=${code}`
-      : `/register?code=${code}`;
+  // A relative path renders identically on server and client; the full URL is
+  // built only when copying (reading window during render broke hydration).
+  const path = code ? `/register?code=${code}` : null;
 
   return (
     <div className="space-y-2">
       <p className="rounded-xl bg-[#e8f3fb] px-3 py-2 font-mono text-sm text-[#2eb6ea]">
-        {code}
+        {code ?? "Belum ada kode aktif"}
       </p>
-      <p className="break-all text-xs text-slate-400">{url}</p>
+      {path && <p className="break-all text-xs text-slate-400">{path}</p>}
       <div className="flex gap-2">
         <Button
           size="sm"
           variant="secondary"
           type="button"
+          disabled={!path}
           onClick={async () => {
-            await navigator.clipboard.writeText(
-              `${window.location.origin}/register?code=${code}`,
-            );
+            if (!path) return;
+            await navigator.clipboard.writeText(`${window.location.origin}${path}`);
             toast.success("Link disalin");
           }}
         >

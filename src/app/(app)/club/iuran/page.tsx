@@ -1,5 +1,6 @@
 import { requireAdminPage } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { proofUrl } from "@/lib/proof";
 import { formatRp } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -58,13 +59,16 @@ export default async function ClubIuranPage() {
                 </div>
                 <Badge className="bg-amber-400/15 text-amber-700">SUBMITTED</Badge>
               </div>
-              {due.proofUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={due.proofUrl}
-                  alt="Bukti"
-                  className="max-h-40 rounded-xl object-contain"
-                />
+              {due.submittedAt && (
+                <a href={proofUrl(due.id, due.submittedAt)} target="_blank" rel="noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={proofUrl(due.id, due.submittedAt)}
+                    alt={`Bukti transfer ${due.user.profile?.nickname ?? due.user.name ?? ""}`}
+                    loading="lazy"
+                    className="max-h-40 rounded-xl object-contain"
+                  />
+                </a>
               )}
               <VerifyFeeButtons dueId={due.id} />
             </Card>

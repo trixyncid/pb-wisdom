@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { proofUrl } from "@/lib/proof";
 import { formatRp } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -52,11 +53,12 @@ export default async function IuranPage() {
             {due.rejectReason && (
               <p className="text-xs text-rose-600">Alasan: {due.rejectReason}</p>
             )}
-            {due.proofUrl && (
+            {due.submittedAt && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={due.proofUrl}
-                alt="Bukti"
+                src={proofUrl(due.id, due.submittedAt)}
+                alt="Bukti transfer"
+                loading="lazy"
                 className="max-h-48 rounded-xl border border-[#0b2a4a]/8 object-contain"
               />
             )}
