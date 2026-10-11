@@ -9,6 +9,17 @@ ARG NODE_IMAGE=node:22-bookworm-slim
 # ---- bun binary (copied into the Node-based build stages)
 FROM oven/bun:1.3.9 AS bun
 
+# ---- local development (docker-compose.yml): built once, the source is
+# bind-mounted and `next dev` hot-reloads, so code changes need no rebuild.
+FROM ${NODE_IMAGE} AS dev
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+EXPOSE 3000
+
 # ---- dependencies
 FROM ${NODE_IMAGE} AS deps
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \

@@ -1,15 +1,24 @@
-# Local stack: the production image + Postgres, for testing everything in
-# Docker. Not for the VPS (that is docker-compose.prod.yml).
+# Local development in Docker. Not for the VPS (that is docker-compose.prod.yml).
 #
-#   bun run docker:up      build and start   -> http://localhost:3000
+#   bun run docker:up      start Postgres + the dev server -> http://localhost:3000
+#                          (hot reload: edit files, no rebuild, no new images)
 #   bun run docker:seed    load the demo club data (wipes the database)
-#   bun run docker:reset   empty database, migrate, seed
+#   bun run docker:reset   empty database, migrations, demo data
+#   bun run docker:prod    optional: build and run the production image on :3001
+#   bun run docker:clean   remove leftover images and build cache
 #   bun run docker:down    stop (data is kept in the pgdata volume)
 
 name: pb-wisdom-local
 
 x-database-url: &database-url
   DATABASE_URL: postgresql://pbwisdom:pbwisdom@db:5432/pbwisdom?schema=public
+
+x-app-env: &app-env
+  <<: *database-url
+  AUTH_SECRET: local-docker-secret-change-me-0123456789
+  CRON_SECRET: local-cron-secret
+  AUTH_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID:-}
+  AUTH_GOOGLE_CLIENT_SECRET: ${AUTH_GOOGLE_CLIENT_SECRET:-}
 
 services:
   db:
@@ -29,7 +38,32 @@ services:
       timeout: 5s
       retries: 20
 
+  # Dev server with hot reload. The image (Node + bun) is built once; the
+  # source is mounted, so saving a file updates the app without a rebuild.
+  # node_modules and .next live in volumes: Linux binaries (Prisma, sharp)
+  # differ from the Mac's, and the host's own builds stay separate.
+  dev:
+    build:
+      context: .
+      target: dev
+    image: pb-wisdom:dev
+    command: ["sh", "-c", "bun install --frozen-lockfile && bunx prisma migrate deploy && bun run dev"]
+    environment:
+      <<: *app-env
+      AUTH_URL: http://localhost:3000
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - next_cache:/app/.next
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ---- optional production image check (`bun run docker:prod`) ----
   migrate:
+    profiles: [prod]
     image: pb-wisdom:local
     command: ["prisma", "migrate", "deploy"]
     environment: *database-url
@@ -38,41 +72,22 @@ services:
         condition: service_healthy
 
   app:
+    profiles: [prod]
     image: pb-wisdom:local
     build:
       context: .
       args:
         DEPLOYMENT_ID: local
     environment:
-      <<: *database-url
-      AUTH_SECRET: local-docker-secret-change-me-0123456789
-      AUTH_URL: http://localhost:3000
-      CRON_SECRET: local-cron-secret
-      AUTH_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID:-}
-      AUTH_GOOGLE_CLIENT_SECRET: ${AUTH_GOOGLE_CLIENT_SECRET:-}
+      <<: *app-env
+      AUTH_URL: http://localhost:3001
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3001:3000"
     depends_on:
       migrate:
         condition: service_completed_successfully
 
-  # On demand only (`docker compose run --rm seed`): uses the build stage,
-  # which has the full toolchain (bun, tsx, dev dependencies).
-  seed:
-    profiles: [tools]
-    build:
-      context: .
-      target: build
-      args:
-        DEPLOYMENT_ID: local
-    image: pb-wisdom:local-tools
-    command: ["bun", "run", "db:seed"]
-    environment:
-      <<: *database-url
-      NODE_ENV: development
-    depends_on:
-      db:
-        condition: service_healthy
-
 volumes:
   pgdata:
+  node_modules:
+  next_cache:

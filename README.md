@@ -12,10 +12,12 @@ Internal club companion for **PB Wisdom Medan** — members & admins only. No pu
 
 ## Local setup (Docker)
 
-Runs the production image with its own Postgres; only Docker is needed.
+Postgres and the Next.js dev server run in Docker; only Docker is needed. The
+dev image is built once and your source is mounted into it, so **saving a file
+hot-reloads the app; no rebuilds, no new images**.
 
 ```bash
-bun run docker:reset   # empty database, migrations, app, demo data
+bun run docker:reset   # empty database, migrations, demo data, start the dev server
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and log in with a seed
@@ -23,16 +25,20 @@ account below.
 
 | Command | Does |
 |---|---|
-| `bun run docker:up` | Rebuild the image after code changes and restart |
+| `bun run docker:up` | Start Postgres + the dev server (hot reload) |
+| `bun run docker:logs` | Follow the dev server logs |
 | `bun run docker:seed` | Reload the demo data (wipes the database) |
-| `bun run docker:reset` | Delete the database volume and start over |
-| `bun run docker:logs` | Follow the app logs |
+| `bun run docker:reset` | Fresh database: migrations + demo data |
 | `bun run docker:down` | Stop (data is kept) |
+| `bun run docker:prod` | Optional: build the production image and run it on :3001 |
+| `bun run docker:clean` | Remove leftover images and build cache |
 
-The database is reachable from the host at
-`postgresql://pbwisdom:pbwisdom@localhost:5433/pbwisdom` (e.g. for a SQL client).
+Dependencies live in a Docker volume and are refreshed on start; after
+changing `package.json`, run `bun run docker:up` again (or `docker compose
+restart dev`). The database is reachable from the host at
+`postgresql://pbwisdom:pbwisdom@localhost:5433/pbwisdom`.
 
-## Local setup (without Docker, hot reload)
+## Local setup (without Docker)
 
 ```bash
 # 1. Install
