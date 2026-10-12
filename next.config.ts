@@ -7,6 +7,13 @@ const nextConfig: NextConfig = {
   // instead of calling Server Actions / assets from the previous build.
   deploymentId: process.env.DEPLOYMENT_ID || undefined,
   poweredByHeader: false,
+  // People type /admin; the admin area lives at /club.
+  async redirects() {
+    return [
+      { source: "/admin", destination: "/club", permanent: false },
+      { source: "/admin/:path*", destination: "/club/:path*", permanent: false },
+    ];
+  },
   allowedDevOrigins: ["127.0.0.1", "localhost", "192.168.0.241"],
   images: {
     remotePatterns: [

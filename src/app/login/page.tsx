@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,6 @@ import Image from "next/image";
 import logoImg from "@/assets/brand/logo.png";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, startTransition] = useTransition();
@@ -33,8 +31,9 @@ export default function LoginPage() {
         return;
       }
       toast.success("Selamat datang kembali!", { id });
-      router.push("/");
-      router.refresh();
+      // Full load so the whole app renders with the new session.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign("/");
     });
   }
 

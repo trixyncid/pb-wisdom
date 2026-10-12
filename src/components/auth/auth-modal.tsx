@@ -52,8 +52,10 @@ export function AuthModal() {
       toast.success("Selamat datang di PB Wisdom!", { id });
       const next = safeRedirectPath(authNext || params.get("next"));
       closeAuth();
-      router.push(next);
-      router.refresh();
+      // A full load, so the page, the shell (admin menu) and the URL all come
+      // from the new session. push() + refresh() could race and leave the old
+      // "/?login=1" URL showing another page's content.
+      window.location.assign(next);
     });
   }
 
