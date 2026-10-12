@@ -11,6 +11,7 @@ import { appUrl } from "@/lib/app-url";
 import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { startOfClubTodayKey } from "@/lib/time";
 
 const RESET_PREFIX = "password-reset:";
 const RESET_TTL_MS = 24 * 60 * 60 * 1000;
@@ -121,6 +122,61 @@ export async function resetPasswordAction(input: { token: string; password: stri
         select: { id: true },
       }),
       prisma.verificationToken.deleteMany({ where: { identifier: row.identifier } }),
+    ]);
+    return {};
+  });
+}
+
+/**
+ * Delete your account. The row is anonymised instead of removed so other
+ * members' match history and the treasurer's fee records stay consistent;
+ * everything that identifies you (name, email, phone, photos, login) goes.
+ */
+export async function deleteAccountAction(input: { password: string; confirm: string }) {
+  return runAction(async () => {
+    const demo = demoActionResult();
+    if (demo) return demo;
+    const session = await requireUser();
+    const data = z.object({ password: z.string().max(200), confirm: z.string() }).parse(input);
+    if (data.confirm.trim().toUpperCase() !== "HAPUS") throw new ActionError('Ketik HAPUS untuk konfirmasi');
+    const userId = session.user.id;
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, passwordHash: true } });
+    if (!user) throw new ActionError("Akun tidak ditemukan");
+    if (user.passwordHash && !(await compare(data.password, user.passwordHash))) throw new ActionError("Password salah");
+    if (user.role === "ADMIN" && (await prisma.user.count({ where: { role: "ADMIN" } })) <= 1) {
+      throw new ActionError("Kamu admin terakhir. Jadikan member lain admin dulu.");
+    }
+
+    const label = "Mantan member";
+    const now = new Date();
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          name: label,
+          email: `deleted-${userId}@deleted.invalid`,
+          emailVerified: null,
+          image: null,
+          passwordHash: null,
+          role: "REJECTED",
+          sessionVersion: { increment: 1 },
+        },
+        select: { id: true },
+      }),
+      prisma.memberProfile.updateMany({
+        where: { userId },
+        data: { nickname: label, phone: null, imageUrl: null, notes: null, status: "INACTIVE" },
+      }),
+      prisma.account.deleteMany({ where: { userId } }),
+      prisma.session.deleteMany({ where: { userId } }),
+      prisma.notification.deleteMany({ where: { userId } }),
+      prisma.verificationToken.deleteMany({ where: { identifier: `${RESET_PREFIX}${userId}` } }),
+      prisma.feeDue.updateMany({ where: { userId }, data: { proofUrl: null } }),
+      prisma.eventPhoto.deleteMany({ where: { uploaderId: userId } }),
+      // Free the seats you held for what is still coming up.
+      prisma.eventRsvp.deleteMany({ where: { userId, event: { startsAt: { gt: now } } } }),
+      prisma.sessionAttendance.deleteMany({ where: { userId, occurrence: { date: { gte: startOfClubTodayKey() } } } }),
     ]);
     return {};
   });

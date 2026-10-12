@@ -81,7 +81,10 @@ export default async function ClubPage() {
                   Team {winner} menang ·{" "}
                   {formatClub(m.playedAt, "d MMM yyyy", { locale: localeId })}
                 </p>
-                <ReviewMatchButtons matchId={m.id} />
+                {m.status === "DISPUTED" && m.disputeReason && (
+                  <p className="rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">Dilaporkan salah: “{m.disputeReason}”</p>
+                )}
+                <ReviewMatchButtons matchId={m.id} disputed={m.status === "DISPUTED"} />
               </div>
             );
           })}

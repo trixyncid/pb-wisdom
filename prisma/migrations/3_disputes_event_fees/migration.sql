@@ -1,0 +1,5 @@
+ALTER TABLE "Match" ADD COLUMN "disputeReason" TEXT,
+ADD COLUMN "disputedById" TEXT,
+ADD COLUMN "disputedAt" TIMESTAMP(3);
+
+ALTER TABLE "EventRsvp" ADD COLUMN "paidAt" TIMESTAMP(3);

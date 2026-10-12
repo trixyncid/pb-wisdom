@@ -285,6 +285,8 @@ model EventRsvp {
   userId    String
   status    RsvpStatus @default(GOING)
   attended  Boolean?
+  /// Admin marked the event fee as paid.
+  paidAt    DateTime?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -311,16 +313,20 @@ model EventPhoto {
 }
 
 model Match {
-  id         String      @id @default(cuid())
-  type       MatchType
-  status     MatchStatus @default(PENDING)
-  playedAt   DateTime    @default(now())
-  score      String
-  eventId    String?
-  loggedById String
-  notes      String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id            String      @id @default(cuid())
+  type          MatchType
+  status        MatchStatus @default(PENDING)
+  playedAt      DateTime    @default(now())
+  score         String
+  eventId       String?
+  loggedById    String
+  notes         String?
+  /// Set when a player reports a wrong score on a verified match (once per match).
+  disputeReason String?
+  disputedById  String?
+  disputedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   event    Event?        @relation(fields: [eventId], references: [id])
   loggedBy User          @relation("MatchLogger", fields: [loggedById], references: [id])

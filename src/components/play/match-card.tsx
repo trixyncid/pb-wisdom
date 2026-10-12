@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { id as localeId } from "date-fns/locale";
-import { Clock } from "lucide-react";
+import { Clock, Flag } from "lucide-react";
 import { parseGames } from "@/lib/badminton";
 import { formatClub } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ export function MatchCard({
   playedAt,
   players,
   pendingBy,
+  dispute,
   footer,
 }: {
   type: "SINGLES" | "DOUBLES";
@@ -24,16 +25,22 @@ export function MatchCard({
   players: MatchCardPlayer[];
   /** Name of who recorded it, when still waiting for verification. */
   pendingBy?: string;
+  /** Who reported the verified score as wrong, and why. */
+  dispute?: { by: string; reason: string };
   footer?: React.ReactNode;
 }) {
   const games = parseGames(score);
   const team = (t: 1 | 2) => players.filter((p) => p.team === t);
   const won = (t: 1 | 2) => team(t).some((p) => p.won);
   return (
-    <article className={cn("flex flex-col gap-3 rounded-[26px] border bg-white/90 p-3.5 shadow-[0_10px_28px_rgba(14,44,60,0.06)]", pendingBy ? "border-accent/40" : "border-white")}>
+    <article className={cn("flex flex-col gap-3 rounded-[26px] border bg-white/90 p-3.5 shadow-[0_10px_28px_rgba(14,44,60,0.06)]", dispute ? "border-rose-300" : pendingBy ? "border-accent/40" : "border-white")}>
       <div className="flex items-center justify-between gap-2 text-xs">
         <span className="rounded-full bg-sand px-2.5 py-0.5 font-bold text-navy">{type === "SINGLES" ? "Single" : "Ganda"}</span>
-        {pendingBy ? (
+        {dispute ? (
+          <span className="inline-flex items-center gap-1 font-semibold text-rose-600">
+            <Flag className="size-3.5" /> Dilaporkan {dispute.by}
+          </span>
+        ) : pendingBy ? (
           <span className="inline-flex items-center gap-1 font-semibold text-accent-ink">
             <Clock className="size-3.5" /> Menunggu verifikasi · dicatat {pendingBy}
           </span>
@@ -82,6 +89,7 @@ export function MatchCard({
           </div>
         ))}
       </div>
+      {dispute && <p className="rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-700">“{dispute.reason}”</p>}
       {footer}
     </article>
   );

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { id as localeId } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, Clock, MapPin, Wallet } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, Clock, MapPin, Wallet } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { appUrl } from "@/lib/app-url";
@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EventActions } from "@/components/events/event-actions";
 import { EventCover } from "@/components/events/event-cover";
 import { EventGallery } from "@/components/events/event-gallery";
+import { EventFeePanel } from "@/components/events/event-fee-panel";
 
 const person = { id: true, name: true, profile: { select: { nickname: true, updatedAt: true } } } as const;
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
@@ -40,6 +41,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const name = (u: { name: string | null; profile: { nickname: string } | null }) => u.profile?.nickname ?? u.name ?? "Player";
   const fill = event.capacity ? Math.min(100, Math.round((going.length / event.capacity) * 100)) : null;
   const isPast = (event.endsAt ?? event.startsAt) < hoursAgo(3);
+  const isAdmin = session.user.role === "ADMIN";
 
   return (
     <div className="flex flex-col gap-5 pt-1">
@@ -81,7 +83,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             {event.extraFee ? (
               <li className="flex items-center gap-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-ink"><Wallet className="size-4" /></span>
-                Biaya {formatRp(event.extraFee)}
+                <span className="flex flex-1 flex-wrap items-center justify-between gap-2">
+                  Biaya {formatRp(event.extraFee)}
+                  {mine?.paidAt ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                      <Check className="size-3.5" /> Kamu sudah lunas
+                    </span>
+                  ) : mine?.status === "GOING" ? (
+                    <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-bold text-accent-ink">Kamu belum bayar</span>
+                  ) : null}
+                </span>
               </li>
             ) : null}
           </ul>
@@ -104,6 +115,23 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           )}
         </div>
       </header>
+
+      {isAdmin && event.extraFee ? (
+        <div className="rise" style={rise(2)}>
+          <EventFeePanel
+            fee={event.extraFee}
+            rows={event.rsvps
+              .filter((r) => r.status === "GOING" || r.paidAt)
+              .map((r) => ({
+                rsvpId: r.id,
+                name: name(r.user),
+                avatar: avatarUrl(r.user.id, r.user.profile?.updatedAt),
+                paid: Boolean(r.paidAt),
+                going: r.status === "GOING",
+              }))}
+          />
+        </div>
+      ) : null}
 
       <section className="rise flex flex-col gap-3" style={rise(2)}>
         <h2 className="px-1 font-display text-xl font-bold text-navy">Peserta</h2>
@@ -145,7 +173,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             uploaderName: name(p.uploader),
           }))}
           currentUserId={session.user.id}
-          isAdmin={session.user.role === "ADMIN"}
+          isAdmin={isAdmin}
         />
       </div>
     </div>

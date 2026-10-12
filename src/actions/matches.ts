@@ -7,6 +7,7 @@ import { ActionError, runAction } from "@/lib/action-result";
 import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
 import { formatGames, matchResult, type GameScore } from "@/lib/badminton";
+import { REPORT_WINDOW_DAYS } from "@/lib/match-report";
 
 const playerId = z.string().min(1, "Pilih semua pemain");
 
@@ -98,7 +99,62 @@ export async function logMatchAction(input: z.input<typeof matchSchema>) {
   });
 }
 
-/** Admin verdict on a recorded match: count it, or reject (delete) it. */
+/**
+ * A player reports a wrong score on a verified match. It leaves the
+ * leaderboard until an admin keeps or deletes it. Once per match, within
+ * REPORT_WINDOW_DAYS, so a result cannot be disputed forever.
+ */
+export async function reportMatchAction(matchId: string, reason: string) {
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    const session = await requireMember();
+    const text = z.string().trim().min(5, "Tulis singkat apa yang salah").max(300, "Maksimal 300 karakter").parse(reason);
+
+    await prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ status: string; score: string; playedAt: Date; disputeReason: string | null }[]>`
+        SELECT "status"::text AS "status", "score", "playedAt", "disputeReason" FROM "Match" WHERE "id" = ${matchId} FOR UPDATE
+      `;
+      const match = locked[0];
+      if (!match) throw new ActionError("Match tidak ditemukan");
+      const player = await tx.matchPlayer.findUnique({
+        where: { matchId_userId: { matchId, userId: session.user.id } },
+        select: { id: true },
+      });
+      if (!player) throw new ActionError("Hanya pemain di match ini yang bisa melapor");
+      if (match.status !== "CONFIRMED") throw new ActionError("Match ini sedang ditinjau admin");
+      if (match.disputeReason) throw new ActionError("Match ini sudah pernah dilaporkan dan dicek admin");
+      if (match.playedAt.getTime() < Date.now() - REPORT_WINDOW_DAYS * 86_400_000) {
+        throw new ActionError(`Laporan hanya bisa dalam ${REPORT_WINDOW_DAYS} hari setelah match`);
+      }
+
+      await tx.match.update({
+        where: { id: matchId },
+        data: { status: "DISPUTED", disputeReason: text, disputedById: session.user.id, disputedAt: new Date() },
+      });
+      const admins = await tx.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+      if (admins.length) {
+        await tx.notification.createMany({
+          data: admins.map((a) => ({
+            userId: a.id,
+            type: "MATCH" as const,
+            title: "Skor match dilaporkan salah",
+            body: `${match.score} · "${text}"`,
+            href: "/play",
+          })),
+        });
+      }
+    });
+
+    revalidateMatches();
+    return {};
+  });
+}
+
+/**
+ * Admin verdict on a recorded match: count it, or reject (delete) it. For a
+ * reported match, APPROVE keeps the score as it was.
+ */
 export async function reviewMatchAction(matchId: string, decision: "APPROVE" | "REJECT") {
   return runAction(async () => {
     const __demo = demoActionResult();
@@ -108,16 +164,35 @@ export async function reviewMatchAction(matchId: string, decision: "APPROVE" | "
 
     await prisma.$transaction(async (tx) => {
       // Lock the row so two admins cannot decide the same match at once.
-      const locked = await tx.$queryRaw<{ status: string; score: string; loggedById: string }[]>`
-        SELECT "status"::text AS "status", "score", "loggedById" FROM "Match" WHERE "id" = ${matchId} FOR UPDATE
+      const locked = await tx.$queryRaw<{ status: string; score: string; loggedById: string; disputedById: string | null }[]>`
+        SELECT "status"::text AS "status", "score", "loggedById", "disputedById" FROM "Match" WHERE "id" = ${matchId} FOR UPDATE
       `;
       const match = locked[0];
       if (!match) throw new ActionError("Match tidak ditemukan");
       if (match.status === "CONFIRMED") throw new ActionError("Match ini sudah diverifikasi");
 
       const players = await tx.matchPlayer.findMany({ where: { matchId }, select: { userId: true } });
+      const disputed = match.status === "DISPUTED";
 
-      if (decision === "APPROVE") {
+      if (disputed) {
+        if (decision === "APPROVE") {
+          await tx.match.update({ where: { id: matchId }, data: { status: "CONFIRMED" } });
+        } else {
+          await tx.match.delete({ where: { id: matchId } });
+        }
+        await tx.notification.createMany({
+          data: players.map((p) => ({
+            userId: p.userId,
+            type: "MATCH" as const,
+            title: decision === "APPROVE" ? "Laporan skor dicek: skor tetap" : "Match yang dilaporkan dihapus",
+            body:
+              decision === "APPROVE"
+                ? `Admin menyatakan skor ${match.score} sudah benar.`
+                : `Skor ${match.score} dihapus. Catat ulang dengan skor yang benar.`,
+            href: "/play",
+          })),
+        });
+      } else if (decision === "APPROVE") {
         await tx.matchPlayer.updateMany({ where: { matchId }, data: { confirmed: true } });
         await tx.match.update({ where: { id: matchId }, data: { status: "CONFIRMED" } });
         await tx.notification.createMany({

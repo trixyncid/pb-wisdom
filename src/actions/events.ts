@@ -201,3 +201,40 @@ export async function deleteEventAction(eventId: string) {
     return {};
   });
 }
+
+/** Admin: mark a participant's event fee as paid (or undo). */
+export async function setEventFeePaidAction(rsvpId: string, paid: boolean) {
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    await requireAdmin();
+
+    const rsvp = await prisma.eventRsvp.findUnique({
+      where: { id: rsvpId },
+      select: { userId: true, paidAt: true, event: { select: { id: true, title: true, extraFee: true } } },
+    });
+    if (!rsvp) throw new ActionError("Peserta tidak ditemukan");
+    if (!rsvp.event.extraFee) throw new ActionError("Event ini tidak berbayar");
+    if (Boolean(rsvp.paidAt) === paid) return {};
+
+    await prisma.$transaction([
+      prisma.eventRsvp.update({ where: { id: rsvpId }, data: { paidAt: paid ? new Date() : null } }),
+      ...(paid
+        ? [
+            prisma.notification.create({
+              data: {
+                userId: rsvp.userId,
+                type: "EVENT",
+                title: "Pembayaran event diterima",
+                body: `Biaya ${rsvp.event.title} sudah dicatat lunas.`,
+                href: `/events/${rsvp.event.id}`,
+              },
+            }),
+          ]
+        : []),
+    ]);
+
+    revalidatePath(`/events/${rsvp.event.id}`);
+    return {};
+  });
+}

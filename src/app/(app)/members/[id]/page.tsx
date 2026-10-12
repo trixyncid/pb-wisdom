@@ -12,6 +12,8 @@ import { person, SKILL_TONE, skillLabel, toPlayers, waLink } from "@/lib/people"
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MatchCard } from "@/components/play/match-card";
+import { ReportMatchButton } from "@/components/play/report-match-button";
+import { canReport } from "@/lib/match-report";
 
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
@@ -153,13 +155,26 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
       ) : null}
 
       <section className="flex flex-col gap-3">
-        <h2 className="px-1 font-display text-xl font-bold text-navy">Match terakhir</h2>
+        <div className="flex items-center justify-between px-1">
+          <h2 className="font-display text-xl font-bold text-navy">Match terakhir</h2>
+          {all.played > 0 && (
+            <Link href={`/members/${id}/riwayat`} className="text-sm font-medium text-navy/50 transition hover:text-navy">
+              Lihat semua
+            </Link>
+          )}
+        </div>
         {matches.length === 0 ? (
           <p className="px-1 text-sm text-slate-500">Belum ada match terverifikasi.</p>
         ) : (
           matches.map((m, i) => (
             <div key={m.id} className="rise" style={rise(3 + i)}>
-              <MatchCard type={m.type} score={m.score} playedAt={m.playedAt} players={toPlayers(m.players)} />
+              <MatchCard
+                type={m.type}
+                score={m.score}
+                playedAt={m.playedAt}
+                players={toPlayers(m.players)}
+                footer={canReport(m, session.user.id) ? <ReportMatchButton matchId={m.id} /> : undefined}
+              />
             </div>
           ))
         )}

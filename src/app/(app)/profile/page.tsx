@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { ProfileShortcuts } from "@/components/profile/profile-shortcuts";
 import { AccountSecurity } from "@/components/account/account-security";
+import { AccountData } from "@/components/account/account-data";
 import { avatarUrl } from "@/lib/avatar";
 import { getLeaderboard, getMemberWinrate } from "@/lib/stats";
 import { formatClub } from "@/lib/time";
@@ -46,6 +47,7 @@ export default async function ProfilePage() {
       />
 
       <AccountSecurity hasPassword={Boolean(user?.passwordHash)} />
+      <AccountData hasPassword={Boolean(user?.passwordHash)} />
 
       <p className="mt-2 px-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Lainnya</p>
       <ProfileShortcuts />

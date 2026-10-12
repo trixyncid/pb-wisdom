@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Flame } from "lucide-react";
+import { ChevronRight, Flame, History } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { avatarUrl } from "@/lib/avatar";
@@ -10,6 +10,8 @@ import { ScoreLauncher } from "@/components/play/score-launcher";
 import { MatchCard } from "@/components/play/match-card";
 import { nameOf, person, toPlayers } from "@/lib/people";
 import { ReviewMatchButtons } from "@/components/play/review-match-buttons";
+import { ReportMatchButton } from "@/components/play/report-match-button";
+import { canReport } from "@/lib/match-report";
 
 const MODES = [
   { key: "semua", label: "Semua", filter: "ALL" },
@@ -55,6 +57,12 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
   const myRow = ranking[myRank];
   const all = myStats.ALL;
   const ring = 2 * Math.PI * 52;
+  // The reporter is always one of the match's players.
+  const disputeOf = (m: (typeof pending)[number]) => {
+    if (m.status !== "DISPUTED" || !m.disputeReason) return undefined;
+    const by = m.players.find((p) => p.userId === m.disputedById);
+    return { by: m.disputedById === me ? "kamu" : by ? nameOf(by.user) : "pemain", reason: m.disputeReason };
+  };
 
   return (
     <div className="flex flex-col gap-6 pt-2">
@@ -126,6 +134,12 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
             </div>
           ))}
         </div>
+        <Link
+          href={`/members/${me}/riwayat`}
+          className="relative mt-3 flex h-10 items-center justify-center gap-1.5 rounded-full bg-white/10 text-sm font-bold transition hover:bg-white/15"
+        >
+          <History className="size-4" /> Riwayat match saya <ChevronRight className="size-4" />
+        </Link>
       </section>
 
       <ScoreLauncher
@@ -148,7 +162,8 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
                 playedAt={m.playedAt}
                 players={toPlayers(m.players)}
                 pendingBy={m.loggedById === me ? "kamu" : nameOf(m.loggedBy)}
-                footer={isAdmin ? <ReviewMatchButtons matchId={m.id} /> : undefined}
+                dispute={disputeOf(m)}
+                footer={isAdmin ? <ReviewMatchButtons matchId={m.id} disputed={m.status === "DISPUTED"} /> : undefined}
               />
             </div>
           ))}
@@ -215,7 +230,14 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
         <section className="flex flex-col gap-3">
           <h2 className="px-1 font-display text-xl font-bold text-navy">Match terbaru</h2>
           {recent.map((m) => (
-            <MatchCard key={m.id} type={m.type} score={m.score} playedAt={m.playedAt} players={toPlayers(m.players)} />
+            <MatchCard
+              key={m.id}
+              type={m.type}
+              score={m.score}
+              playedAt={m.playedAt}
+              players={toPlayers(m.players)}
+              footer={canReport(m, me) ? <ReportMatchButton matchId={m.id} /> : undefined}
+            />
           ))}
         </section>
       )}
