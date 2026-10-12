@@ -9,6 +9,11 @@ import { parseClubDateEndOfDay } from "@/lib/time";
 import { demoActionResult } from "@/lib/demo/guard";
 import { logAdmin, memberName } from "@/lib/admin-log";
 import { deleteStoredImages, storeImage } from "@/lib/storage";
+import { kickOutbox, queueEmails } from "@/lib/email/outbox";
+import { emails } from "@/lib/email/templates";
+import { formatClub } from "@/lib/time";
+import { formatRp } from "@/lib/utils";
+import { id as localeId } from "date-fns/locale";
 
 const feePeriodSchema = z.object({
   label: z.string().trim().min(1, "Label wajib diisi").max(60),
@@ -47,7 +52,7 @@ export async function createFeePeriodAction(input: z.input<typeof feePeriodSchem
           role: { in: ["MEMBER", "ADMIN"] },
           NOT: { profile: { status: "INACTIVE" } },
         },
-        select: { id: true },
+        select: { id: true, email: true, name: true, profile: { select: { nickname: true } } },
       });
 
       await tx.feeDue.createMany({
@@ -62,10 +67,21 @@ export async function createFeePeriodAction(input: z.input<typeof feePeriodSchem
           href: "/profile/iuran",
         })),
       });
+      const period = {
+        label: data.label,
+        amount: formatRp(data.amount),
+        dueDate: formatClub(dueDate, "d MMMM yyyy", { locale: localeId }),
+        instructions: data.paymentInstructions,
+      };
+      await queueEmails(
+        tx,
+        members.map((m) => ({ to: m.email, kind: "fee-period", ...emails.feePeriodOpened(m.profile?.nickname ?? m.name ?? "teman", period) })),
+      );
       await logAdmin(tx, session.user.id, "IURAN", `Membuka iuran ${data.label} (Rp${data.amount.toLocaleString("id-ID")}) untuk ${members.length} member`, `/club/iuran/${created.id}`);
       return created;
     });
 
+    kickOutbox();
     revalidatePath("/club/iuran");
     revalidatePath("/profile/iuran");
     revalidatePath("/");
@@ -202,8 +218,18 @@ export async function verifyFeeAction(
       }
       const row = await tx.feeDue.findUniqueOrThrow({
         where: { id: dueId },
-        select: { userId: true, periodId: true, period: { select: { label: true } } },
+        select: {
+          userId: true,
+          periodId: true,
+          period: { select: { label: true } },
+          user: { select: { email: true, name: true, profile: { select: { nickname: true } } } },
+        },
       });
+      if (!approve) {
+        await queueEmails(tx, [
+          { to: row.user.email, kind: "fee-rejected", ...emails.feeRejected(row.user.profile?.nickname ?? row.user.name ?? "teman", row.period.label, reason) },
+        ]);
+      }
       const name = await memberName(row.userId, tx);
       await logAdmin(
         tx,
@@ -225,6 +251,7 @@ export async function verifyFeeAction(
       });
     });
 
+    kickOutbox();
     revalidatePath("/club/iuran");
     revalidatePath("/profile/iuran");
     revalidatePath("/");

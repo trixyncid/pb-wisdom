@@ -4,11 +4,12 @@ import { connection } from "next/server";
 import { KeyRound, MessageCircle, ShieldCheck } from "lucide-react";
 import { prisma } from "@/lib/db";
 import logoImg from "@/assets/brand/logo.png";
+import { ForgotPasswordForm } from "@/components/account/forgot-password-form";
 
 export const metadata = { title: "Lupa password · PB Wisdom" };
 
-// No email is sent by this app: an admin creates a one-time reset link and
-// shares it over WhatsApp. Admin phone numbers are not shown on this public page.
+// Reset by email first; without access to it, an admin creates a one-time
+// link and shares it over WhatsApp. Admin phone numbers are not shown here.
 export default async function ForgotPasswordPage() {
   // The admin list comes from the database: render per request, not at build.
   await connection();
@@ -31,7 +32,11 @@ export default async function ForgotPasswordPage() {
         <div className="space-y-3 text-center">
           <Image src={logoImg} alt="PB Wisdom" width={140} height={106} className="mx-auto h-auto w-[140px]" />
           <h1 className="font-display text-2xl font-extrabold text-navy">Lupa password?</h1>
-          <p className="text-sm text-slate-500">Tenang, admin bisa bantu reset dalam hitungan menit.</p>
+          <p className="text-sm text-slate-500">Masukkan email akunmu, kami kirim link untuk membuat password baru.</p>
+        </div>
+        <ForgotPasswordForm />
+        <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+          <span className="h-px flex-1 bg-navy/10" /> Tidak bisa buka email? <span className="h-px flex-1 bg-navy/10" />
         </div>
         <ol className="space-y-3">
           {steps.map(({ icon: Icon, text }, i) => (

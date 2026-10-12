@@ -26,6 +26,10 @@ x-app-env: &app-env
   SPACES_SECRET: ${SPACES_SECRET:-}
   SPACES_CDN_URL: ${SPACES_CDN_URL:-}
   SPACES_PREFIX: ${SPACES_PREFIX:-pb-wisdom-dev}
+  # Optional: Resend from .env (empty = emails are only logged)
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  EMAIL_FROM: ${EMAIL_FROM:-}
+  EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
 
 services:
   db:

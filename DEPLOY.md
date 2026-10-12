@@ -134,6 +134,21 @@ image first: profile photos 512 px WebP, transfer proofs max 1600 px WebP
 photos max 1920 px compressed JPEG. Objects live under `pb-wisdom/` in the
 bucket and are deleted when the photo, event or account is deleted.
 
+### 4b. Email (Resend)
+
+1. Resend → Domains: verify the sending domain (DNS records on trixync.id).
+2. Resend → API Keys: create a key with **Sending access** for that domain.
+3. In `~/pb-wisdom/.env`: `RESEND_API_KEY`, `EMAIL_FROM` (an address on the
+   verified domain, e.g. `PB Wisdom <noreply@trixync.id>`) and optionally
+   `EMAIL_REPLY_TO`. Then `dc up -d app`.
+
+Mail is written to the `EmailOutbox` table with the change it reports, sent
+right after, and retried every 5 minutes by the cron container (up to 5
+attempts with backoff). Sent: password reset, new sign-up (to admins),
+account approved, new iuran period, proof rejected, weekly overdue reminder.
+Check delivery with `dc exec db psql -U pbwisdom -c 'select kind, status,
+attempts, "lastError" from "EmailOutbox" order by "createdAt" desc limit 20;'`.
+
 ### 5. Fresh database and first accounts
 
 The database starts empty; the migrate service creates the schema on the

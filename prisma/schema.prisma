@@ -402,3 +402,33 @@ model AdminLog {
   @@index([createdAt])
   @@index([kind, createdAt])
 }
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  /// No RESEND_API_KEY (local development): logged instead of sent.
+  SKIPPED
+}
+
+/// Outgoing email. Written in the same transaction as the change it reports,
+/// sent right after the response, retried by /api/cron/email on failure.
+model EmailOutbox {
+  id          String      @id @default(cuid())
+  to          String
+  subject     String
+  html        String      @db.Text
+  text        String      @db.Text
+  kind        String
+  status      EmailStatus @default(PENDING)
+  attempts    Int         @default(0)
+  lastError   String?
+  sendAfter   DateTime    @default(now())
+  /// Claimed by a sender until then, so two workers never send the same mail.
+  lockedUntil DateTime?
+  providerId  String?
+  sentAt      DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([status, sendAfter])
+}

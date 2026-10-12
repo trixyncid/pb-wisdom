@@ -48,8 +48,10 @@ function RegisterForm() {
         return;
       }
       toast.success("Akun dibuat, selamat datang!", { id });
-      router.push("/");
-      router.refresh();
+      // Full load: the server sends a pending account to the waiting page
+      // before anything else renders.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign("/");
     });
   }
 

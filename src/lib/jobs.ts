@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/db";
+import { queueEmails } from "@/lib/email/outbox";
+import { emails } from "@/lib/email/templates";
+import { formatRp } from "@/lib/utils";
 import { isDemoMode } from "@/lib/demo/mode";
 import { upcomingDatesForWeekday } from "@/lib/time";
 
@@ -34,6 +37,7 @@ export async function sendOverdueFeeReminders() {
     include: {
       dues: {
         where: { status: { in: ["UNPAID", "REJECTED"] } },
+        include: { user: { select: { email: true, name: true, profile: { select: { nickname: true } } } } },
       },
     },
   });
@@ -45,6 +49,7 @@ export async function sendOverdueFeeReminders() {
       title: `Iuran ${period.label} terlambat`,
       body: "Segera bayar dan upload bukti transfer.",
       href: "/profile/iuran",
+      email: { to: due.user.email, ...emails.feeOverdue(due.user.profile?.nickname ?? due.user.name ?? "teman", period.label, formatRp(period.amount)) },
     })),
   );
   if (candidates.length === 0) return { ok: true, count: 0 };
@@ -60,8 +65,14 @@ export async function sendOverdueFeeReminders() {
     select: { userId: true, title: true },
   });
   const sent = new Set(recent.map((r) => `${r.userId}|${r.title}`));
-  const data = candidates.filter((c) => !sent.has(`${c.userId}|${c.title}`));
-  if (data.length) await prisma.notification.createMany({ data });
+  const due = candidates.filter((c) => !sent.has(`${c.userId}|${c.title}`));
+  if (due.length) {
+    // Same weekly rhythm for the email: it goes out with the notification.
+    await prisma.$transaction([
+      prisma.notification.createMany({ data: due.map(({ userId, type, title, body, href }) => ({ userId, type, title, body, href })) }),
+      queueEmails(prisma, due.map((c) => ({ ...c.email, kind: "fee-overdue" }))),
+    ]);
+  }
 
-  return { ok: true, count: data.length };
+  return { ok: true, count: due.length };
 }

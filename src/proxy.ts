@@ -114,12 +114,9 @@ function route(req: NextRequest, token: JWT | null) {
     return NextResponse.redirect(url);
   }
 
-  if (
-    token.role === "PENDING" &&
-    !pathname.startsWith("/pending") &&
-    !pathname.startsWith("/api") &&
-    !isSoftPublic
-  ) {
+  // Waiting for approval: nothing but the waiting page, not even the public
+  // home and agenda (those are for guests and members).
+  if (token.role === "PENDING" && !pathname.startsWith("/pending") && !pathname.startsWith("/api")) {
     const url = req.nextUrl.clone();
     url.pathname = "/pending";
     return NextResponse.redirect(url);

@@ -46,7 +46,7 @@ const adminTabs: Tab[] = [
 
 function isActive(pathname: string, tab: Tab) {
   if (tab.href === "/club" && tab.label === "Hub") {
-    return pathname === "/club" || pathname.startsWith("/club/export");
+    return pathname === "/club" || pathname.startsWith("/club/export") || pathname.startsWith("/club/emails");
   }
   if (tab.match === "exact") return pathname === tab.href;
   if (tab.href === "/") return pathname === "/";

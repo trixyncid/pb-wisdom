@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { id as localeId } from "date-fns/locale";
-import { CalendarDays, ChevronRight, PartyPopper, Receipt, Swords, UserCheck, Users, Wallet } from "lucide-react";
+import { CalendarDays, ChevronRight, Mail, PartyPopper, Receipt, Swords, UserCheck, Users, Wallet } from "lucide-react";
 import { requireAdminPage } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatClub, hoursAgo } from "@/lib/time";
@@ -59,6 +59,7 @@ export default async function ClubPage() {
     { href: "/club/iuran", icon: Wallet, title: "Iuran", desc: "Periode, bukti & tunai" },
     { href: "/club/jadwal", icon: CalendarDays, title: "Agenda", desc: "Latihan, sparring & event" },
     { href: "/play", icon: Swords, title: "Skor match", desc: "Verifikasi & leaderboard" },
+    { href: "/club/emails", icon: Mail, title: "Email", desc: "Template notifikasi" },
   ];
 
   return (

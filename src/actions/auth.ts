@@ -15,6 +15,8 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { normalizePhone } from "@/lib/phone";
 import { logAdmin, memberName } from "@/lib/admin-log";
 import { deleteStoredImages, storeImage } from "@/lib/storage";
+import { kickOutbox, queueEmails } from "@/lib/email/outbox";
+import { emails } from "@/lib/email/templates";
 
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Nama minimal 2 karakter").max(80, "Nama terlalu panjang"),
@@ -74,7 +76,29 @@ export async function registerAction(input: z.infer<typeof registerSchema>) {
           },
           select: { id: true },
         });
+
+        // Someone to approve: tell the admins in the app and by email.
+        if (!autoApprove) {
+          const admins = await tx.user.findMany({
+            where: { role: "ADMIN" },
+            select: { id: true, email: true, name: true, profile: { select: { nickname: true } } },
+          });
+          await tx.notification.createMany({
+            data: admins.map((a) => ({
+              userId: a.id,
+              type: "SYSTEM" as const,
+              title: `Pendaftar baru: ${data.name}`,
+              body: "Menunggu persetujuan di Club admin → Members.",
+              href: "/club/members?tab=menunggu",
+            })),
+          });
+          await queueEmails(
+            tx,
+            admins.map((a) => ({ to: a.email, kind: "new-signup", ...emails.newSignup(a.profile?.nickname ?? a.name ?? "Admin", { name: data.name, email }) })),
+          );
+        }
       });
+      kickOutbox();
     } catch (err) {
       // The unique index decides, even when two sign-ups race; the transaction
       // also gives back the invite use.
@@ -173,6 +197,8 @@ export async function approveMemberAction(userId: string, approve: boolean) {
       const name = await memberName(userId, tx);
       await logAdmin(tx, session.user.id, "MEMBER", approve ? `Menyetujui ${name}` : `Menolak pendaftaran ${name}`, approve ? `/members/${userId}` : undefined);
       if (approve) {
+        const member = await tx.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true, name: true, profile: { select: { nickname: true } } } });
+        await queueEmails(tx, [{ to: member.email, kind: "approved", ...emails.approved(member.profile?.nickname ?? member.name ?? "teman") }]);
         await tx.notification.create({
           data: {
             userId,
@@ -185,6 +211,7 @@ export async function approveMemberAction(userId: string, approve: boolean) {
       }
     });
 
+    kickOutbox();
     revalidatePath("/club");
     revalidatePath("/club/members");
     return {};

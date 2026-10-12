@@ -3,6 +3,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { compare, hash } from "bcryptjs";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { z } from "zod";
 import { updateSession } from "@/lib/auth";
 import { requireAdmin, requireUser } from "@/lib/authz";
@@ -14,6 +15,8 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { startOfClubTodayKey } from "@/lib/time";
 import { logAdmin } from "@/lib/admin-log";
 import { deleteStoredImages } from "@/lib/storage";
+import { processOutbox, queueEmails } from "@/lib/email/outbox";
+import { emails } from "@/lib/email/templates";
 
 const RESET_PREFIX = "password-reset:";
 const RESET_TTL_MS = 24 * 60 * 60 * 1000;
@@ -99,6 +102,43 @@ export async function createPasswordResetLinkAction(userId: string) {
       phone: user.profile?.phone ?? null,
       name: user.profile?.nickname ?? user.name ?? "member",
     };
+  });
+}
+
+/**
+ * "Lupa password" by email: sends a one-time reset link (24 h) to the
+ * address if it belongs to an account. The answer is the same either way and
+ * the work happens after the response, so it does not reveal who is a member.
+ */
+export async function requestPasswordResetEmailAction(rawEmail: string) {
+  return runAction(async () => {
+    const demo = demoActionResult();
+    if (demo) return demo;
+    const email = z.string().trim().toLowerCase().email("Email tidak valid").max(254).parse(rawEmail);
+    const ip = clientIp(await headers());
+    if (!rateLimit(`pw-forgot:ip:${ip}`, 5, 60 * 60 * 1000) || !rateLimit(`pw-forgot:email:${email}`, 3, 60 * 60 * 1000)) {
+      throw new ActionError("Terlalu banyak permintaan, coba lagi nanti");
+    }
+
+    after(async () => {
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true, name: true, role: true, profile: { select: { nickname: true } } },
+      });
+      if (!user || user.role === "REJECTED") return;
+      const token = randomBytes(32).toString("base64url");
+      const identifier = `${RESET_PREFIX}${user.id}`;
+      const mail = emails.passwordReset(user.profile?.nickname ?? user.name ?? "teman", `${appUrl()}/reset-password?token=${token}`);
+      await prisma.$transaction([
+        prisma.verificationToken.deleteMany({ where: { identifier } }),
+        prisma.verificationToken.create({
+          data: { identifier, token: tokenHash(token), expires: new Date(Date.now() + RESET_TTL_MS) },
+        }),
+        queueEmails(prisma, [{ to: email, kind: "password-reset", ...mail }]),
+      ]);
+      await processOutbox(5);
+    });
+    return {};
   });
 }
 
