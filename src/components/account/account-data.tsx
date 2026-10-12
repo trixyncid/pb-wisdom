@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { signOut } from "next-auth/react";
 import { Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { withFlash } from "@/components/flash-toast";
 import { deleteAccountAction } from "@/actions/account";
 import { withToast } from "@/lib/with-toast";
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,7 @@ export function AccountData({ hasPassword }: { hasPassword: boolean }) {
                 const res = await withToast(deleteAccountAction({ password, confirm }), { loading: "Menghapus akun…", success: "Akun dihapus. Sampai jumpa!" });
                 if (!res.ok) return;
                 toast.loading("Keluar…");
-                await signOut({ callbackUrl: "/" });
+                await signOut({ callbackUrl: withFlash("/", "account-deleted") });
               });
             }}
           >

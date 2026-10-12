@@ -9,11 +9,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateRangePicker, type DayRange } from "@/components/ui/date-picker";
+import { toast } from "sonner";
 
 export type EventFormValues = {
   title: string;
   type: EventType;
-  /** "2026-10-17T19:00" in club time, as a datetime-local input wants it. */
+  /** "2026-10-17T19:00" in club time (day from the picker, time from the input). */
   startsAt: string;
   endsAt: string;
   location: string;
@@ -26,8 +28,12 @@ export type EventFormValues = {
 export function CreateEventForm({ eventId, initial, onDone }: { eventId?: string; initial?: EventFormValues; onDone?: () => void }) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [type, setType] = useState<EventType>(initial?.type ?? "SPARRING");
-  const [startsAt, setStartsAt] = useState(initial?.startsAt ?? "");
-  const [endsAt, setEndsAt] = useState(initial?.endsAt ?? "");
+  // Day(s) from the range picker, times from the time inputs.
+  const [days, setDays] = useState<DayRange | null>(() =>
+    initial?.startsAt ? { from: initial.startsAt.slice(0, 10), to: (initial.endsAt || initial.startsAt).slice(0, 10) } : null,
+  );
+  const [startTime, setStartTime] = useState(initial?.startsAt.slice(11, 16) ?? "19:00");
+  const [endTime, setEndTime] = useState(initial?.endsAt.slice(11, 16) ?? "");
   const [location, setLocation] = useState(initial?.location ?? "");
   const [capacity, setCapacity] = useState(initial?.capacity ?? "");
   const [extraFee, setExtraFee] = useState(initial?.extraFee ?? "");
@@ -40,12 +46,21 @@ export function CreateEventForm({ eventId, initial, onDone }: { eventId?: string
       className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
+        if (!days) {
+          toast.error("Pilih tanggal event");
+          return;
+        }
+        const lastDay = days.to ?? days.from;
+        if (lastDay !== days.from && !endTime) {
+          toast.error("Event beberapa hari: isi jam selesai di hari terakhir");
+          return;
+        }
         start(async () => {
           const values = {
             title,
             type,
-            startsAt,
-            endsAt: endsAt || undefined,
+            startsAt: `${days.from}T${startTime}`,
+            endsAt: endTime ? `${lastDay}T${endTime}` : undefined,
             location,
             capacity: capacity ? Number(capacity) : undefined,
             extraFee: extraFee ? Number(extraFee) : undefined,
@@ -62,8 +77,8 @@ export function CreateEventForm({ eventId, initial, onDone }: { eventId?: string
           });
           if (!res.ok) return;
           setTitle("");
-          setStartsAt("");
-          setEndsAt("");
+          setDays(null);
+          setEndTime("");
           setNotes("");
         });
       }}
@@ -97,14 +112,18 @@ export function CreateEventForm({ eventId, initial, onDone }: { eventId?: string
         <Label htmlFor={`${uid}-title`}>Judul</Label>
         <Input id={`${uid}-title`} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Sparring vs PB Garuda" required />
       </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${uid}-days`}>Tanggal</Label>
+        <DateRangePicker id={`${uid}-days`} value={days} onChange={setDays} required fromDate={eventId ? undefined : new Date()} />
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-start`}>Mulai</Label>
-          <Input id={`${uid}-start`} type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} required />
+          <Label htmlFor={`${uid}-start`}>Jam mulai</Label>
+          <Input id={`${uid}-start`} type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} required />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={`${uid}-end`}>Selesai (opsional)</Label>
-          <Input id={`${uid}-end`} type="datetime-local" value={endsAt} min={startsAt || undefined} onChange={(e) => setEndsAt(e.target.value)} />
+          <Label htmlFor={`${uid}-end`}>{days?.to && days.to !== days.from ? "Jam selesai (hari terakhir)" : "Jam selesai (opsional)"}</Label>
+          <Input id={`${uid}-end`} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
         </div>
       </div>
       <div className="space-y-1.5">

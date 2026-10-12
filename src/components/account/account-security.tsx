@@ -5,6 +5,7 @@ import { signOut } from "next-auth/react";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown, KeyRound, MonitorSmartphone } from "lucide-react";
 import { toast } from "sonner";
+import { withFlash } from "@/components/flash-toast";
 import { changePasswordAction, logoutEverywhereAction } from "@/actions/account";
 import { withToast } from "@/lib/with-toast";
 import { Button } from "@/components/ui/button";
@@ -104,7 +105,7 @@ export function AccountSecurity({ hasPassword }: { hasPassword: boolean }) {
                     const res = await withToast(logoutEverywhereAction(), { loading: "Mengeluarkan semua perangkat…", success: "Semua perangkat sudah keluar" });
                     if (!res.ok) return;
                     toast.loading("Keluar…");
-                    await signOut({ callbackUrl: "/login" });
+                    await signOut({ callbackUrl: withFlash("/login", "logout-all") });
                   })
                 }
               >

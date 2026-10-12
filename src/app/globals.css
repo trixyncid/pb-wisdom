@@ -216,6 +216,19 @@ body {
   }
 }
 
+/* Popovers (date pickers): grow out of their trigger. */
+.popover-in {
+  transform-origin: var(--radix-popover-content-transform-origin);
+  animation: popoverIn 0.16s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
 .prop-shadow {
   filter: drop-shadow(0 18px 22px rgba(14, 44, 60, 0.22));
 }
@@ -229,7 +242,8 @@ body {
   .play-pulse,
   .confetti-piece,
   .ring-fill,
-  .spin-slow {
+  .spin-slow,
+  .popover-in {
     animation: none;
   }
 }

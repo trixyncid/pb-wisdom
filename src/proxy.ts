@@ -125,6 +125,16 @@ function route(req: NextRequest, token: JWT | null) {
     return NextResponse.redirect(url);
   }
 
+  // Already signed in but sent to the login popup (an old link, a stale tab):
+  // go straight to where the popup would have led.
+  if (pathname === "/" && req.nextUrl.searchParams.get("login") === "1") {
+    const next = req.nextUrl.searchParams.get("next") ?? "/";
+    const url = req.nextUrl.clone();
+    url.search = "";
+    url.pathname = next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : "/";
+    return NextResponse.redirect(url);
+  }
+
   if (
     (token.role === "MEMBER" || token.role === "ADMIN") &&
     (pathname.startsWith("/pending") ||

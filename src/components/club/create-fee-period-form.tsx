@@ -8,6 +8,7 @@ import { createFeePeriodAction } from "@/actions/iuran";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import { cn } from "@/lib/utils";
 
 /** Open a new fee period; every active member gets a due and a notification. */
@@ -65,7 +66,7 @@ export function CreateFeePeriodForm({ lastAmount, lastInstructions }: { lastAmou
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="fee-due">Jatuh tempo</Label>
-                  <Input id="fee-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />
+                  <DatePicker id="fee-due" value={dueDate} onChange={setDueDate} placeholder="Pilih" required fromDate={new Date()} />
                 </div>
               </div>
               <div className="space-y-1.5">

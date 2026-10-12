@@ -7,6 +7,7 @@ import { LogOut } from "lucide-react";
 import { useUiStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { withFlash } from "@/components/flash-toast";
 
 export function LogoutModal() {
   const { logoutOpen, closeLogout } = useUiStore();
@@ -16,7 +17,7 @@ export function LogoutModal() {
     start(async () => {
       closeLogout();
       toast.loading("Keluar…");
-      await signOut({ callbackUrl: "/" });
+      await signOut({ callbackUrl: withFlash("/", "logout") });
     });
   }
 

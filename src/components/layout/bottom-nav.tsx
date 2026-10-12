@@ -16,7 +16,6 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUiStore } from "@/lib/store";
 import Image from "next/image";
 import logoImg from "@/assets/brand/logo.png";
 
@@ -24,18 +23,17 @@ type Tab = {
   href: string;
   label: string;
   icon: typeof Home;
-  public?: boolean;
   match?: "exact" | "prefix";
   /** The raised center button (Play). */
   featured?: boolean;
 };
 
 const memberTabs: Tab[] = [
-  { href: "/", label: "Home", icon: Home, public: true, match: "exact" },
-  { href: "/jadwal", label: "Jadwal", icon: CalendarDays, public: true },
-  { href: "/play", label: "Play", icon: Swords, public: false, featured: true },
-  { href: "/events", label: "Events", icon: Trophy, public: false },
-  { href: "/profile", label: "Profile", icon: UserRound, public: false },
+  { href: "/", label: "Home", icon: Home, match: "exact" },
+  { href: "/jadwal", label: "Jadwal", icon: CalendarDays },
+  { href: "/play", label: "Play", icon: Swords, featured: true },
+  { href: "/events", label: "Events", icon: Trophy },
+  { href: "/profile", label: "Profile", icon: UserRound },
 ];
 
 const adminTabs: Tab[] = [
@@ -59,22 +57,12 @@ function isActive(pathname: string, tab: Tab) {
 // fetched /api/auth/session on every page load and window focus.
 export function BottomNav({ role }: { role: Role | null }) {
   const pathname = usePathname();
-  const openAuth = useUiStore((s) => s.openAuth);
-  const loggedIn = role !== null;
   const isAdmin = role === "ADMIN";
   const inAdminArea = pathname.startsWith("/club");
 
   // Admins open /club from the shield button in the top bar, so the member
   // bar stays at five tabs and the active label always fits.
   const tabs: Tab[] = inAdminArea && isAdmin ? adminTabs : memberTabs;
-
-  function go(tab: Tab, e: React.MouseEvent) {
-    if (tab.public) return;
-    if (!loggedIn) {
-      e.preventDefault();
-      openAuth(tab.href);
-    }
-  }
 
   const onAdminBar = inAdminArea && isAdmin;
   const spring = { type: "spring", stiffness: 460, damping: 34 } as const;
@@ -101,7 +89,6 @@ export function BottomNav({ role }: { role: Role | null }) {
                 <li key={tab.href} className="relative">
                   <Link
                     href={tab.href}
-                    onClick={(e) => go(tab, e)}
                     aria-label={tab.label}
                     aria-current={active ? "page" : undefined}
                     className="group relative -my-5 flex size-[clamp(62px,17vw,70px)] items-center justify-center"
@@ -130,7 +117,7 @@ export function BottomNav({ role }: { role: Role | null }) {
               <li key={`${tab.href}-${tab.label}`} className="relative">
                 <Link
                   href={tab.href}
-                  onClick={(e) => go(tab, e)}
+                  
                   aria-label={tab.label}
                   aria-current={active ? "page" : undefined}
                   className={cn(
@@ -169,7 +156,7 @@ export function BottomNav({ role }: { role: Role | null }) {
               <li key={tab.href}>
                 <Link
                   href={tab.href}
-                  onClick={(e) => go(tab, e)}
+                  
                   className={cn(
                     "flex items-center gap-3 rounded-full p-1.5 pr-4 text-sm font-semibold transition-colors duration-200",
                     active

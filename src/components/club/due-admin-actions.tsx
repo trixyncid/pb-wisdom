@@ -10,6 +10,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 
 /** Admin: record a cash payment for one due. */
 export function MarkPaidButton({ dueId, name }: { dueId: string; name: string }) {
@@ -112,7 +113,7 @@ export function EditFeePeriodButton({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor={`${uid}-due`}>Jatuh tempo</Label>
-              <Input id={`${uid}-due`} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />
+              <DatePicker id={`${uid}-due`} value={dueDate} onChange={setDueDate} required />
             </div>
           </div>
           {amountLocked && <p className="text-xs text-slate-500">Nominal terkunci karena sudah ada yang bayar atau kirim bukti.</p>}

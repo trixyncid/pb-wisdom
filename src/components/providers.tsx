@@ -5,6 +5,7 @@ import { Suspense, useState } from "react";
 import { Toaster } from "@/components/toaster";
 import { AuthModal } from "@/components/auth/auth-modal";
 import { LogoutModal } from "@/components/auth/logout-modal";
+import { FlashToast } from "@/components/flash-toast";
 
 export function Providers({
   children,
@@ -31,6 +32,9 @@ export function Providers({
         </Suspense>
       )}
       {!demo && <LogoutModal />}
+      <Suspense fallback={null}>
+        <FlashToast />
+      </Suspense>
       <Toaster />
     </QueryClientProvider>
   );
