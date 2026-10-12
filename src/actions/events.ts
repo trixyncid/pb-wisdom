@@ -13,6 +13,7 @@ import { formatClub } from "@/lib/time";
 import { id as localeId } from "date-fns/locale";
 import { logAdmin, memberName } from "@/lib/admin-log";
 import { AGENDA_KINDS } from "@/lib/agenda";
+import { deleteStoredImages, storeImage } from "@/lib/storage";
 
 const eventSchema = z.object({
   title: z.string().trim().min(1, "Judul wajib diisi").max(120),
@@ -246,12 +247,15 @@ export async function addEventPhotoAction(eventId: string, image: string, captio
     if (__demo) return __demo;
     const session = await requireMember();
     const data = photoSchema.parse({ image, caption: caption || undefined });
+    // Check first, so nothing is uploaded for an event that is gone.
+    if (!(await prisma.event.count({ where: { id: eventId } }))) throw new ActionError("Event tidak ditemukan");
+    const imageUrl = await storeImage("gallery", data.image);
 
     await prisma.eventPhoto.create({
       data: {
         eventId,
         uploaderId: session.user.id,
-        imageUrl: data.image,
+        imageUrl,
         caption: data.caption,
       },
       select: { id: true },
@@ -270,13 +274,17 @@ export async function deleteEventPhotoAction(photoId: string) {
     if (__demo) return __demo;
     const session = await requireMember();
 
-    const photo = await prisma.eventPhoto.findUnique({ where: { id: photoId } });
+    const photo = await prisma.eventPhoto.findUnique({
+      where: { id: photoId },
+      select: { eventId: true, uploaderId: true, imageUrl: true },
+    });
     if (!photo) throw new ActionError("Foto tidak ditemukan");
     if (photo.uploaderId !== session.user.id && session.user.role !== "ADMIN") {
       throw new ActionError("Kamu tidak punya akses untuk ini");
     }
 
-    await prisma.eventPhoto.delete({ where: { id: photoId } });
+    await prisma.eventPhoto.delete({ where: { id: photoId }, select: { id: true } });
+    deleteStoredImages([photo.imageUrl]);
     if (photo.uploaderId !== session.user.id) {
       await logAdmin(prisma, session.user.id, "AGENDA", `Menghapus foto album dari ${await memberName(photo.uploaderId)}`, `/events/${photo.eventId}`);
     }
@@ -292,12 +300,16 @@ export async function deleteEventAction(eventId: string) {
     const __demo = demoActionResult();
     if (__demo) return __demo;
     const session = await requireAdmin();
-    const event = await prisma.event.findUnique({ where: { id: eventId }, select: { title: true } });
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { title: true, photos: { select: { imageUrl: true } } },
+    });
     if (!event) throw new ActionError("Event tidak ditemukan");
     await prisma.$transaction([
       prisma.event.delete({ where: { id: eventId }, select: { id: true } }),
       logAdmin(prisma, session.user.id, "AGENDA", `Menghapus event "${event.title}"`),
     ]);
+    deleteStoredImages(event.photos.map((p) => p.imageUrl));
     revalidatePath("/jadwal");
     revalidatePath("/events");
     revalidatePath("/club/jadwal");

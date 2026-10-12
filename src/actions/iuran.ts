@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { parseClubDateEndOfDay } from "@/lib/time";
 import { demoActionResult } from "@/lib/demo/guard";
 import { logAdmin, memberName } from "@/lib/admin-log";
+import { deleteStoredImages, storeImage } from "@/lib/storage";
 
 const feePeriodSchema = z.object({
   label: z.string().trim().min(1, "Label wajib diisi").max(60),
@@ -133,6 +134,12 @@ export async function submitFeeProofAction(dueId: string, proofImage: string) {
     if (__demo) return __demo;
     const session = await requireMember();
     const image = proofImageSchema.parse(proofImage);
+    const previous = await prisma.feeDue.findFirst({
+      where: { id: dueId, userId: session.user.id, status: { in: ["UNPAID", "REJECTED", "SUBMITTED"] } },
+      select: { proofUrl: true },
+    });
+    if (!previous) throw new ActionError("Tagihan tidak ditemukan atau sudah diverifikasi");
+    const proofUrl = await storeImage("proof", image);
 
     // A verified payment is final; re-submitting must not reopen it.
     const updated = await prisma.feeDue.updateMany({
@@ -142,15 +149,18 @@ export async function submitFeeProofAction(dueId: string, proofImage: string) {
         status: { in: ["UNPAID", "REJECTED", "SUBMITTED"] },
       },
       data: {
-        proofUrl: image,
+        proofUrl,
         status: "SUBMITTED",
         submittedAt: new Date(),
         rejectReason: null,
       },
     });
     if (updated.count === 0) {
+      // Verified in the meantime: the new upload is not needed.
+      deleteStoredImages([proofUrl]);
       throw new ActionError("Tagihan tidak ditemukan atau sudah diverifikasi");
     }
+    deleteStoredImages([previous.proofUrl]);
 
     revalidatePath("/profile/iuran");
     revalidatePath("/club/iuran");

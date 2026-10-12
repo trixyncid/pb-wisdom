@@ -14,6 +14,7 @@ import { isDemoMode } from "@/lib/demo/mode";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { normalizePhone } from "@/lib/phone";
 import { logAdmin, memberName } from "@/lib/admin-log";
+import { deleteStoredImages, storeImage } from "@/lib/storage";
 
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Nama minimal 2 karakter").max(80, "Nama terlalu panjang"),
@@ -111,6 +112,10 @@ export async function updateProfileAction(input: z.input<typeof profileSchema>) 
     if (__demo) return __demo;
     const session = await requireUser();
     const data = profileSchema.parse(input);
+    const imageUrl = data.imageUrl ? await storeImage("avatar", data.imageUrl) : undefined;
+    const previous = imageUrl
+      ? await prisma.memberProfile.findUnique({ where: { userId: session.user.id }, select: { imageUrl: true } })
+      : null;
 
     await prisma.user.update({
       where: { id: session.user.id },
@@ -122,13 +127,13 @@ export async function updateProfileAction(input: z.input<typeof profileSchema>) 
               nickname: data.nickname,
               phone: data.phone,
               skill: data.skill,
-              imageUrl: data.imageUrl,
+              imageUrl,
             },
             update: {
               nickname: data.nickname,
               phone: data.phone,
               ...(data.skill ? { skill: data.skill } : {}),
-              ...(data.imageUrl ? { imageUrl: data.imageUrl } : {}),
+              ...(imageUrl ? { imageUrl } : {}),
             },
           },
         },
@@ -136,6 +141,7 @@ export async function updateProfileAction(input: z.input<typeof profileSchema>) 
       select: { id: true },
     });
 
+    deleteStoredImages([previous?.imageUrl]);
     revalidatePath("/profile");
     revalidatePath("/directory");
     revalidatePath(`/members/${session.user.id}`);

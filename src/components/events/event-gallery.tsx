@@ -46,7 +46,7 @@ export function EventGallery({
       const label = list.length > 1 ? ` (${i + 1}/${list.length})` : "";
       const id = toast.loading(`Memproses foto${label}…`);
       try {
-        const image = await shrinkImageFile(file, MAX_PHOTO_CHARS);
+        const image = await shrinkImageFile(file, MAX_PHOTO_CHARS, "jpeg");
         toast.dismiss(id);
         const res = await withToast(addEventPhotoAction(eventId, image, caption || undefined), {
           loading: `Mengupload foto${label}…`,

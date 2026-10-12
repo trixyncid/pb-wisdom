@@ -13,6 +13,7 @@ import { demoActionResult } from "@/lib/demo/guard";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { startOfClubTodayKey } from "@/lib/time";
 import { logAdmin } from "@/lib/admin-log";
+import { deleteStoredImages } from "@/lib/storage";
 
 const RESET_PREFIX = "password-reset:";
 const RESET_TTL_MS = 24 * 60 * 60 * 1000;
@@ -152,6 +153,11 @@ export async function deleteAccountAction(input: { password: string; confirm: st
 
     const label = "Mantan member";
     const now = new Date();
+    const [images, proofs, photos] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: { image: true, profile: { select: { imageUrl: true } } } }),
+      prisma.feeDue.findMany({ where: { userId, proofUrl: { not: null } }, select: { proofUrl: true } }),
+      prisma.eventPhoto.findMany({ where: { uploaderId: userId }, select: { imageUrl: true } }),
+    ]);
     await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
@@ -180,6 +186,7 @@ export async function deleteAccountAction(input: { password: string; confirm: st
       prisma.eventRsvp.deleteMany({ where: { userId, event: { startsAt: { gt: now } } } }),
       prisma.sessionAttendance.deleteMany({ where: { userId, occurrence: { date: { gte: startOfClubTodayKey() } } } }),
     ]);
+    deleteStoredImages([images?.image, images?.profile?.imageUrl, ...proofs.map((d) => d.proofUrl), ...photos.map((p) => p.imageUrl)]);
     return {};
   });
 }

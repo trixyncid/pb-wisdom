@@ -119,38 +119,40 @@ ssh-keyscan -H 43.163.108.105     # value for VPS_KNOWN_HOSTS
 Also create a `production` environment under Settings → Environments (the
 deploy job uses it; add required reviewers there if you want a manual gate).
 
-### 4. Move the data from Railway
+### 4. DigitalOcean Spaces (images)
 
-Use a `pg_dump` at least as new as Railway's Postgres, and set the `db` image
-in `docker-compose.prod.yml` to the **same major version** as Railway before
-the first start (check with `SELECT version();`).
+1. Create a Space (e.g. `pb-wisdom`, region **sgp1**, closest to Medan).
+   Keep **File Listing: Restricted**. Enable the CDN if you like (faster, free).
+2. Spaces → Access Keys → create a key with **Limited access** to that bucket
+   (read/write/delete).
+3. Put `SPACES_REGION`, `SPACES_BUCKET`, `SPACES_KEY`, `SPACES_SECRET` (and
+   `SPACES_CDN_URL` if the CDN is on) in `~/pb-wisdom/.env`.
+
+The app uploads from the server (no CORS setup needed) and re-encodes every
+image first: profile photos 512 px WebP, transfer proofs max 1600 px WebP
+(private: only the member and admins get a 5-minute signed link), album
+photos max 1920 px compressed JPEG. Objects live under `pb-wisdom/` in the
+bucket and are deleted when the photo, event or account is deleted.
+
+### 5. Fresh database and first accounts
+
+The database starts empty; the migrate service creates the schema on the
+first start. After the first deploy (step 6.1), create the two accounts:
 
 ```bash
-# laptop: dump (use Railway's direct / unpooled URL)
-docker run --rm postgres:16-alpine pg_dump --format=custom --no-owner --no-acl \
-  "$RAILWAY_DIRECT_URL" > railway.dump
-scp railway.dump dc-yukpartneran:pb-wisdom/
-
-# server: start only the database, restore, mark the baseline as applied
-dc up -d db
-dc exec -T db sh -c 'pg_restore --no-owner --no-acl -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < railway.dump
-dc run --rm migrate prisma migrate resolve --applied 0_init
-dc up -d                    # migrate applies 1_add_indexes, then the app starts
+dc run --rm --no-deps app node prisma/seed-prod.mjs
 ```
 
-`0_init` is the schema Railway was created with (`db push`); `1_add_indexes`
-adds indexes only. If `migrate deploy` reports drift, stop and compare before
-continuing.
+It creates `admin@gmail.com` (admin) and `randybrilliant68@gmail.com`
+(member) without passwords and prints a **set-password link** for each
+(valid 24 hours, single use) plus the club invite code. Open each link and
+choose a password. Running it again never touches accounts that already have
+a password; it just prints fresh links for the others.
 
-**Event times:** events created through the deployed app before the time-zone
-fix were stored 7 hours late (19:00 WIB saved as 19:00 UTC). Shift only those
-rows back, e.g. `UPDATE "Event" SET "startsAt" = "startsAt" - interval '7 hours',
-"endsAt" = "endsAt" - interval '7 hours' WHERE id IN (...);`
+Never run `bun run db:seed` against production: that is the demo seed and it
+wipes every table.
 
-**Invite code:** after the move, click **Regenerate** once on /club so the
-seeded `WISDOM2026` code stops working.
-
-### 5. Go live
+### 6. Go live
 
 1. Run the Deploy workflow (push to `main` or "Run workflow").
 2. Test via the server before DNS changes: `curl -H "Host: pb-wisdom.trixync.id" http://43.163.108.105`.
