@@ -69,6 +69,14 @@ enum InviteType {
   EVENT
 }
 
+enum AdminLogKind {
+  MEMBER
+  IURAN
+  AGENDA
+  MATCH
+  CLUB
+}
+
 enum NotificationType {
   IURAN
   EVENT
@@ -104,6 +112,7 @@ model User {
   matchPlayers      MatchPlayer[]
   notifications     Notification[]
   announcements     Announcement[]
+  adminLogs         AdminLog[]
 
   @@index([role])
 }
@@ -377,4 +386,19 @@ model Announcement {
   createdBy User @relation(fields: [createdById], references: [id])
 
   @@index([createdAt])
+}
+
+/// What admins did, for the Club admin activity log.
+model AdminLog {
+  id        String       @id @default(cuid())
+  actorId   String?
+  kind      AdminLogKind
+  summary   String
+  href      String?
+  createdAt DateTime     @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([kind, createdAt])
 }

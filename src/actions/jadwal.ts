@@ -9,6 +9,9 @@ import { demoActionResult } from "@/lib/demo/guard";
 import { upcomingDatesForWeekday } from "@/lib/time";
 import { OCCURRENCE_WEEKS_AHEAD } from "@/lib/jobs";
 import { z } from "zod";
+import { logAdmin } from "@/lib/admin-log";
+import { weekdayLabel } from "@/lib/utils";
+import { startOfClubTodayKey } from "@/lib/time";
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -26,7 +29,7 @@ export async function upsertTrainingSessionAction(input: z.input<typeof sessionS
   return runAction(async () => {
     const demo = demoActionResult({ id: "demo" });
     if (demo) return demo;
-    await requireAdmin();
+    const admin = await requireAdmin();
     const { id, ...data } = sessionSchema.parse(input);
     if (data.endTime && data.endTime <= data.startTime) {
       throw new ActionError("Jam selesai harus setelah jam mulai");
@@ -35,6 +38,24 @@ export async function upsertTrainingSessionAction(input: z.input<typeof sessionS
     const session = id
       ? await prisma.trainingSession.update({ where: { id }, data, select: { id: true, weekday: true } })
       : await prisma.trainingSession.create({ data, select: { id: true, weekday: true } });
+
+    if (id) {
+      // Moved to another weekday: drop the upcoming dates on the old day (and
+      // their RSVPs). Occurrence keys are 12:00 UTC on the club date.
+      const upcoming = await prisma.trainingOccurrence.findMany({
+        where: { sessionId: id, date: { gte: startOfClubTodayKey() } },
+        select: { id: true, date: true },
+      });
+      const stale = upcoming.filter((o) => o.date.getUTCDay() !== session.weekday).map((o) => o.id);
+      if (stale.length) await prisma.trainingOccurrence.deleteMany({ where: { id: { in: stale } } });
+    }
+    await logAdmin(
+      prisma,
+      admin.user.id,
+      "AGENDA",
+      `${id ? "Mengubah" : "Menambahkan"} latihan rutin "${data.title}" (${weekdayLabel(data.weekday)} ${data.startTime})`,
+      "/club/jadwal",
+    );
 
     // Put it on the agenda right away (the daily job keeps it filled).
     await prisma.trainingOccurrence.createMany({
@@ -57,8 +78,9 @@ export async function setTrainingSessionActiveAction(id: string, active: boolean
   return runAction(async () => {
     const demo = demoActionResult();
     if (demo) return demo;
-    await requireAdmin();
-    await prisma.trainingSession.update({ where: { id }, data: { active }, select: { id: true } });
+    const admin = await requireAdmin();
+    const session = await prisma.trainingSession.update({ where: { id }, data: { active }, select: { title: true } });
+    await logAdmin(prisma, admin.user.id, "AGENDA", `${active ? "Mengaktifkan lagi" : "Menjeda"} latihan "${session.title}"`, "/club/jadwal");
     revalidatePath("/jadwal");
     revalidatePath("/club/jadwal");
     revalidatePath("/");

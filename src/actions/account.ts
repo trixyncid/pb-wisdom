@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { startOfClubTodayKey } from "@/lib/time";
+import { logAdmin } from "@/lib/admin-log";
 
 const RESET_PREFIX = "password-reset:";
 const RESET_TTL_MS = 24 * 60 * 60 * 1000;
@@ -90,6 +91,7 @@ export async function createPasswordResetLinkAction(userId: string) {
       prisma.verificationToken.create({
         data: { identifier, token: tokenHash(token), expires: new Date(Date.now() + RESET_TTL_MS) },
       }),
+      logAdmin(prisma, session.user.id, "MEMBER", `Membuat link reset password untuk ${user.profile?.nickname ?? user.name ?? "member"}`, `/members/${user.id}`),
     ]);
     return {
       url: `${appUrl()}/reset-password?token=${token}`,

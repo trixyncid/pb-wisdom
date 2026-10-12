@@ -1,10 +1,15 @@
 "use client";
 
-import { useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Banknote, Trash2 } from "lucide-react";
+import { Banknote, Pencil, Trash2 } from "lucide-react";
 import { withToast } from "@/lib/with-toast";
 import { deleteFeePeriodAction, markDuePaidAction } from "@/actions/admin";
+import { updateFeePeriodAction } from "@/actions/iuran";
+import { Sheet } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 /** Admin: record a cash payment for one due. */
 export function MarkPaidButton({ dueId, name }: { dueId: string; name: string }) {
@@ -45,5 +50,89 @@ export function DeletePeriodButton({ periodId, label }: { periodId: string; labe
     >
       <Trash2 className="size-4" /> Hapus periode
     </button>
+  );
+}
+
+/** Admin: fix a period's name, amount (until someone paid), due date or payment details. */
+export function EditFeePeriodButton({
+  periodId,
+  initial,
+  amountLocked,
+}: {
+  periodId: string;
+  initial: { label: string; amount: number; dueDate: string; paymentInstructions: string };
+  amountLocked: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState(initial.label);
+  const [amount, setAmount] = useState(String(initial.amount));
+  const [dueDate, setDueDate] = useState(initial.dueDate);
+  const [instructions, setInstructions] = useState(initial.paymentInstructions);
+  const [pending, start] = useTransition();
+  const uid = useId();
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex h-10 items-center gap-1.5 rounded-full bg-white/10 px-4 text-sm font-bold text-white transition hover:bg-white/20"
+      >
+        <Pencil className="size-4" /> Edit
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Edit periode iuran">
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            start(async () => {
+              const res = await withToast(
+                updateFeePeriodAction(periodId, { label, amount: Number(amount), dueDate, paymentInstructions: instructions }),
+                { loading: "Menyimpan…", success: "Periode diperbarui" },
+              );
+              if (res.ok) setOpen(false);
+            });
+          }}
+        >
+          <div className="space-y-1.5">
+            <Label htmlFor={`${uid}-label`}>Nama periode</Label>
+            <Input id={`${uid}-label`} value={label} onChange={(e) => setLabel(e.target.value)} maxLength={60} required />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor={`${uid}-amount`}>Nominal (Rp)</Label>
+              <Input
+                id={`${uid}-amount`}
+                inputMode="numeric"
+                value={amount}
+                disabled={amountLocked}
+                onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`${uid}-due`}>Jatuh tempo</Label>
+              <Input id={`${uid}-due`} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required />
+            </div>
+          </div>
+          {amountLocked && <p className="text-xs text-slate-500">Nominal terkunci karena sudah ada yang bayar atau kirim bukti.</p>}
+          <div className="space-y-1.5">
+            <Label htmlFor={`${uid}-instructions`}>Cara bayar</Label>
+            <textarea
+              id={`${uid}-instructions`}
+              className="min-h-20 w-full rounded-2xl border border-navy/10 bg-cream px-3 py-2 text-sm text-navy outline-none focus:ring-2 focus:ring-accent"
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              maxLength={2000}
+              required
+            />
+          </div>
+          <p className="text-xs text-slate-500">Member yang belum bayar diberi tahu kalau nominal atau jatuh tempo berubah.</p>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Menyimpan…" : "Simpan perubahan"}
+          </Button>
+        </form>
+      </Sheet>
+    </>
   );
 }

@@ -10,6 +10,7 @@ import { AdminHeader } from "@/components/club/admin-header";
 import { InvitePanel } from "@/components/club/invite-panel";
 import { AnnouncementForm } from "@/components/club/announcement-form";
 import { MatchCard } from "@/components/play/match-card";
+import { AdminLogRow } from "@/components/club/admin-log-list";
 import { ReviewMatchButtons } from "@/components/play/review-match-buttons";
 
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
@@ -18,7 +19,7 @@ export default async function ClubPage() {
   await requireAdminPage();
   const now = hoursAgo(0);
   const weekAhead = hoursAgo(-24 * 7);
-  const [activeMembers, pendingMembers, pendingFees, latestPeriod, upcomingEvents, invite, reviews, announcements] = await Promise.all([
+  const [activeMembers, pendingMembers, pendingFees, latestPeriod, upcomingEvents, invite, reviews, announcements, activity] = await Promise.all([
     prisma.user.count({ where: { role: { in: ["MEMBER", "ADMIN"] }, NOT: { profile: { status: "INACTIVE" } } } }),
     prisma.user.count({ where: { role: "PENDING" } }),
     prisma.feeDue.count({ where: { status: "SUBMITTED" } }),
@@ -43,6 +44,7 @@ export default async function ClubPage() {
       take: 5,
       include: { createdBy: { select: person } },
     }),
+    prisma.adminLog.findMany({ orderBy: { createdAt: "desc" }, take: 4, include: { actor: { select: person } } }),
   ]);
 
   const paid = latestPeriod?.dues.filter((d) => d.status === "VERIFIED").length ?? 0;
@@ -141,6 +143,24 @@ export default async function ClubPage() {
           </Link>
         ))}
       </nav>
+
+      <section className="rise flex flex-col gap-2" style={rise(4)}>
+        <div className="flex items-center justify-between px-1">
+          <h2 className="font-display text-xl font-bold text-navy">Aktivitas admin</h2>
+          <Link href="/club/log" className="text-sm font-medium text-navy/50 transition hover:text-navy">
+            Lihat semua
+          </Link>
+        </div>
+        {activity.length === 0 ? (
+          <p className="px-1 text-sm text-slate-500">Belum ada aktivitas tercatat.</p>
+        ) : (
+          <div className="flex flex-col rounded-[26px] border border-white bg-white/90 p-1.5 shadow-[0_10px_28px_rgba(14,44,60,0.06)]">
+            {activity.map((e) => (
+              <AdminLogRow key={e.id} entry={e} showDate />
+            ))}
+          </div>
+        )}
+      </section>
 
       <InvitePanel code={invite?.code ?? null} remaining={invite?.remainingUses ?? null} />
       <AnnouncementForm

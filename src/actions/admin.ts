@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/authz";
 import { ActionError, runAction } from "@/lib/action-result";
 import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
+import { logAdmin, memberName } from "@/lib/admin-log";
 
 /** Make a member admin, or step an admin back to member. Never the last admin. */
 export async function setAdminRoleAction(userId: string, admin: boolean) {
@@ -23,6 +24,8 @@ export async function setAdminRoleAction(userId: string, admin: boolean) {
       if (!admin && (await tx.user.count({ where: { role: "ADMIN" } })) < 1) {
         throw new ActionError("Klub harus punya minimal satu admin");
       }
+      const name = await memberName(userId, tx);
+      await logAdmin(tx, session.user.id, "MEMBER", admin ? `Menjadikan ${name} admin` : `Mencabut peran admin ${name}`, `/members/${userId}`);
       await tx.notification.create({
         data: {
           userId,
@@ -55,6 +58,7 @@ export async function markDuePaidAction(dueId: string) {
         data: { status: "VERIFIED", verifiedById: session.user.id, verifiedAt: new Date(), rejectReason: null },
       });
       if (changed.count === 0) throw new ActionError("Tagihan ini sudah lunas");
+      await logAdmin(tx, session.user.id, "IURAN", `Mencatat iuran ${due.period.label} ${await memberName(due.userId, tx)} lunas tunai`, `/club/iuran/${due.periodId}`);
       await tx.notification.create({
         data: {
           userId: due.userId,
@@ -78,12 +82,16 @@ export async function deleteFeePeriodAction(periodId: string) {
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
-    await requireAdmin();
+    const session = await requireAdmin();
 
     const paid = await prisma.feeDue.count({ where: { periodId, status: { in: ["VERIFIED", "SUBMITTED"] } } });
     if (paid > 0) throw new ActionError("Sudah ada yang bayar / kirim bukti; periode tidak bisa dihapus");
-    const deleted = await prisma.feePeriod.deleteMany({ where: { id: periodId } });
-    if (deleted.count === 0) throw new ActionError("Periode tidak ditemukan");
+    const period = await prisma.feePeriod.findUnique({ where: { id: periodId }, select: { label: true } });
+    if (!period) throw new ActionError("Periode tidak ditemukan");
+    await prisma.$transaction([
+      prisma.feePeriod.delete({ where: { id: periodId }, select: { id: true } }),
+      logAdmin(prisma, session.user.id, "IURAN", `Menghapus periode iuran ${period.label}`),
+    ]);
 
     revalidatePath("/club/iuran");
     revalidatePath("/profile/iuran");
@@ -96,8 +104,13 @@ export async function deleteAnnouncementAction(id: string) {
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
-    await requireAdmin();
-    await prisma.announcement.deleteMany({ where: { id } });
+    const session = await requireAdmin();
+    const ann = await prisma.announcement.findUnique({ where: { id }, select: { title: true } });
+    if (!ann) return {};
+    await prisma.$transaction([
+      prisma.announcement.delete({ where: { id }, select: { id: true } }),
+      logAdmin(prisma, session.user.id, "CLUB", `Menghapus pengumuman "${ann.title}"`),
+    ]);
     revalidatePath("/club");
     return {};
   });

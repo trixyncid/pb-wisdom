@@ -7,6 +7,7 @@ import { ActionError, runAction } from "@/lib/action-result";
 import { prisma } from "@/lib/db";
 import { parseClubDateEndOfDay } from "@/lib/time";
 import { demoActionResult } from "@/lib/demo/guard";
+import { logAdmin, memberName } from "@/lib/admin-log";
 
 const feePeriodSchema = z.object({
   label: z.string().trim().min(1, "Label wajib diisi").max(60),
@@ -23,7 +24,7 @@ export async function createFeePeriodAction(input: z.input<typeof feePeriodSchem
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
-    await requireAdmin();
+    const session = await requireAdmin();
     const data = feePeriodSchema.parse(input);
     const dueDate = parseClubDateEndOfDay(data.dueDate);
 
@@ -60,6 +61,7 @@ export async function createFeePeriodAction(input: z.input<typeof feePeriodSchem
           href: "/profile/iuran",
         })),
       });
+      await logAdmin(tx, session.user.id, "IURAN", `Membuka iuran ${data.label} (Rp${data.amount.toLocaleString("id-ID")}) untuk ${members.length} member`, `/club/iuran/${created.id}`);
       return created;
     });
 
@@ -67,6 +69,54 @@ export async function createFeePeriodAction(input: z.input<typeof feePeriodSchem
     revalidatePath("/profile/iuran");
     revalidatePath("/");
     return { id: period.id };
+  });
+}
+
+/**
+ * Admin: fix a period's name, due date or payment details. The amount can
+ * only change while nobody has paid or sent a proof. Unpaid members are told
+ * when the amount or due date changes.
+ */
+export async function updateFeePeriodAction(periodId: string, input: z.input<typeof feePeriodSchema>) {
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    const session = await requireAdmin();
+    const data = feePeriodSchema.parse(input);
+    const dueDate = parseClubDateEndOfDay(data.dueDate);
+
+    await prisma.$transaction(async (tx) => {
+      const before = await tx.feePeriod.findUnique({ where: { id: periodId }, select: { amount: true, dueDate: true } });
+      if (!before) throw new ActionError("Periode tidak ditemukan");
+      if (data.amount !== before.amount) {
+        const started = await tx.feeDue.count({ where: { periodId, status: { in: ["VERIFIED", "SUBMITTED"] } } });
+        if (started > 0) throw new ActionError("Nominal tidak bisa diubah: sudah ada yang bayar atau kirim bukti");
+      }
+      await tx.feePeriod.update({
+        where: { id: periodId },
+        data: { label: data.label, amount: data.amount, dueDate, paymentInstructions: data.paymentInstructions },
+        select: { id: true },
+      });
+
+      if (data.amount !== before.amount || dueDate.getTime() !== before.dueDate.getTime()) {
+        const unpaid = await tx.feeDue.findMany({ where: { periodId, status: { in: ["UNPAID", "REJECTED"] } }, select: { userId: true } });
+        await tx.notification.createMany({
+          data: unpaid.map((d) => ({
+            userId: d.userId,
+            type: "IURAN" as const,
+            title: `Iuran ${data.label} diperbarui`,
+            body: `Rp${data.amount.toLocaleString("id-ID")}, jatuh tempo ${data.dueDate.split("-").reverse().join("/")}.`,
+            href: "/profile/iuran",
+          })),
+        });
+      }
+      await logAdmin(tx, session.user.id, "IURAN", `Mengubah periode iuran ${data.label}`, `/club/iuran/${periodId}`);
+    });
+
+    revalidatePath(`/club/iuran/${periodId}`);
+    revalidatePath("/club/iuran");
+    revalidatePath("/profile/iuran");
+    return {};
   });
 }
 
@@ -142,8 +192,16 @@ export async function verifyFeeAction(
       }
       const row = await tx.feeDue.findUniqueOrThrow({
         where: { id: dueId },
-        select: { userId: true },
+        select: { userId: true, periodId: true, period: { select: { label: true } } },
       });
+      const name = await memberName(row.userId, tx);
+      await logAdmin(
+        tx,
+        session.user.id,
+        "IURAN",
+        approve ? `Memverifikasi iuran ${row.period.label} ${name}` : `Menolak bukti iuran ${row.period.label} ${name}: ${reason}`,
+        `/club/iuran/${row.periodId}`,
+      );
       await tx.notification.create({
         data: {
           userId: row.userId,

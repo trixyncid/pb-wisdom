@@ -1,7 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
-import { Trash2 } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Pencil, Trash2 } from "lucide-react";
+import { Sheet } from "@/components/ui/sheet";
+import { CreateEventForm, type EventFormValues } from "@/components/club/create-event-form";
+import { TrainingSessionForm, type SessionFormValues } from "@/components/club/training-session-form";
 import { setTrainingSessionActiveAction } from "@/actions/jadwal";
 import { deleteEventAction } from "@/actions/events";
 import { withToast } from "@/lib/with-toast";
@@ -56,5 +59,45 @@ export function DeleteEventButton({ id, title }: { id: string; title: string }) 
     >
       <Trash2 className="size-4" />
     </button>
+  );
+}
+
+/** Pencil button that opens the event form in edit mode. */
+export function EditEventButton({ id, initial }: { id: string; initial: EventFormValues }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={`Edit ${initial.title}`}
+        onClick={() => setOpen(true)}
+        className="flex size-10 shrink-0 items-center justify-center rounded-full text-navy/50 transition hover:bg-cream hover:text-navy"
+      >
+        <Pencil className="size-4" />
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Edit event">
+        <CreateEventForm eventId={id} initial={initial} onDone={() => setOpen(false)} />
+      </Sheet>
+    </>
+  );
+}
+
+/** Pencil button that opens the weekly training form in edit mode. */
+export function EditSessionButton({ id, initial }: { id: string; initial: SessionFormValues }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={`Edit ${initial.title}`}
+        onClick={() => setOpen(true)}
+        className="flex size-10 shrink-0 items-center justify-center rounded-full text-navy/50 transition hover:bg-cream hover:text-navy"
+      >
+        <Pencil className="size-4" />
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Edit latihan rutin">
+        <TrainingSessionForm sessionId={id} initial={initial} onDone={() => setOpen(false)} />
+      </Sheet>
+    </>
   );
 }

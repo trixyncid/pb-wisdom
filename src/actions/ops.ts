@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/authz";
 import { runAction } from "@/lib/action-result";
 import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
+import { logAdmin } from "@/lib/admin-log";
 
 const announcementSchema = z.object({
   title: z.string().trim().min(1, "Judul wajib diisi").max(100, "Judul maksimal 100 karakter"),
@@ -36,6 +37,7 @@ export async function createAnnouncementAction(title: string, body: string) {
           href: "/notifications",
         })),
       }),
+      logAdmin(prisma, session.user.id, "CLUB", `Mengirim pengumuman "${data.title}" ke ${members.length} member`),
     ]);
 
     revalidatePath("/");

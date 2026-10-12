@@ -15,6 +15,7 @@ import { EventActions } from "@/components/events/event-actions";
 import { EventCover } from "@/components/events/event-cover";
 import { EventGallery } from "@/components/events/event-gallery";
 import { EventFeePanel } from "@/components/events/event-fee-panel";
+import { EditEventButton } from "@/components/club/agenda-admin-controls";
 
 const person = { id: true, name: true, profile: { select: { nickname: true, updatedAt: true } } } as const;
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
@@ -58,7 +59,24 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
           {isPast && <span className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-navy/60">Selesai</span>}
         </div>
         <div className="flex flex-col gap-4 p-5">
-          <h1 className="font-display text-[1.75rem] font-extrabold leading-tight text-navy">{event.title}</h1>
+          <div className="flex items-start gap-2">
+            <h1 className="font-display min-w-0 flex-1 text-[1.75rem] font-extrabold leading-tight text-navy">{event.title}</h1>
+            {isAdmin && (
+              <EditEventButton
+                id={event.id}
+                initial={{
+                  title: event.title,
+                  type: event.type,
+                  startsAt: formatClub(event.startsAt, "yyyy-MM-dd'T'HH:mm"),
+                  endsAt: event.endsAt ? formatClub(event.endsAt, "yyyy-MM-dd'T'HH:mm") : "",
+                  location: event.location,
+                  capacity: event.capacity ? String(event.capacity) : "",
+                  extraFee: event.extraFee ? String(event.extraFee) : "",
+                  notes: event.notes ?? "",
+                }}
+              />
+            )}
+          </div>
           <ul className="flex flex-col gap-2.5 text-sm text-navy">
             <li className="flex items-center gap-3">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-cream"><CalendarDays className="size-4" /></span>

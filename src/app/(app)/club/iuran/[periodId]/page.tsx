@@ -11,7 +11,7 @@ import { formatRp, cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CopyButton } from "@/components/ui/copy-button";
 import { AdminHeader } from "@/components/club/admin-header";
-import { DeletePeriodButton, MarkPaidButton } from "@/components/club/due-admin-actions";
+import { DeletePeriodButton, EditFeePeriodButton, MarkPaidButton } from "@/components/club/due-admin-actions";
 
 const GROUPS: { key: string; title: string; statuses: FeeStatus[]; tone: string }[] = [
   { key: "belum", title: "Belum bayar", statuses: ["UNPAID", "REJECTED"], tone: "text-rose-600" },
@@ -45,6 +45,8 @@ export default async function FeePeriodPage({ params }: { params: Promise<{ peri
   const dues = [...period.dues].sort((a, b) => name(a).localeCompare(name(b), "id"));
   const paid = dues.filter((d) => d.status === "VERIFIED").length;
   const unpaid = dues.filter((d) => d.status === "UNPAID" || d.status === "REJECTED");
+  // Nobody paid or sent a proof yet: the amount can change and the period can go.
+  const untouched = paid === 0 && !dues.some((d) => d.status === "SUBMITTED");
   const dueText = formatClub(period.dueDate, "d MMMM yyyy", { locale: localeId });
   const reminder = (n: string) =>
     `Halo ${n}, pengingat iuran PB Wisdom ${period.label} sebesar ${formatRp(period.amount)} (jatuh tempo ${dueText}).\n${period.paymentInstructions}\nUpload bukti di aplikasi: Profil → Iuran saya. Terima kasih!`;
@@ -69,7 +71,17 @@ export default async function FeePeriodPage({ params }: { params: Promise<{ peri
             <a href={`/api/export/iuran?periodId=${period.id}`} className="inline-flex h-10 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-bold text-navy">
               <Download className="size-4" /> CSV
             </a>
-            {paid === 0 && !dues.some((d) => d.status === "SUBMITTED") && <DeletePeriodButton periodId={period.id} label={period.label} />}
+            <EditFeePeriodButton
+              periodId={period.id}
+              amountLocked={!untouched}
+              initial={{
+                label: period.label,
+                amount: period.amount,
+                dueDate: formatClub(period.dueDate, "yyyy-MM-dd"),
+                paymentInstructions: period.paymentInstructions,
+              }}
+            />
+            {untouched && <DeletePeriodButton periodId={period.id} label={period.label} />}
           </div>
         </div>
       </section>

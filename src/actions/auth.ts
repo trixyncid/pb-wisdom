@@ -13,6 +13,7 @@ import { demoActionResult } from "@/lib/demo/guard";
 import { isDemoMode } from "@/lib/demo/mode";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { normalizePhone } from "@/lib/phone";
+import { logAdmin, memberName } from "@/lib/admin-log";
 
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Nama minimal 2 karakter").max(80, "Nama terlalu panjang"),
@@ -163,6 +164,8 @@ export async function approveMemberAction(userId: string, approve: boolean) {
       if (changed.count === 0) {
         throw new ActionError("Akun ini tidak bisa diubah");
       }
+      const name = await memberName(userId, tx);
+      await logAdmin(tx, session.user.id, "MEMBER", approve ? `Menyetujui ${name}` : `Menolak pendaftaran ${name}`, approve ? `/members/${userId}` : undefined);
       if (approve) {
         await tx.notification.create({
           data: {
@@ -193,11 +196,15 @@ export async function deactivateMemberAction(userId: string, active: boolean) {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, role: true } });
     if (!user || (user.role !== "MEMBER" && user.role !== "ADMIN")) throw new ActionError("Member tidak ditemukan");
     const status = active ? "ACTIVE" : "INACTIVE";
-    await prisma.memberProfile.upsert({
-      where: { userId },
-      create: { userId, nickname: user.name ?? "Player", status },
-      update: { status },
-    });
+    await prisma.$transaction([
+      prisma.memberProfile.upsert({
+        where: { userId },
+        create: { userId, nickname: user.name ?? "Player", status },
+        update: { status },
+        select: { id: true },
+      }),
+      logAdmin(prisma, session.user.id, "MEMBER", `${active ? "Mengaktifkan" : "Menonaktifkan"} ${await memberName(userId)}`, `/members/${userId}`),
+    ]);
 
     revalidatePath("/club/members");
     revalidatePath("/directory");
@@ -227,6 +234,7 @@ export async function regenerateInviteAction() {
           createdById: session.user.id,
         },
       }),
+      logAdmin(prisma, session.user.id, "CLUB", `Membuat kode undangan baru ${code}`),
     ]);
     revalidatePath("/club");
     return { code: invite.code };

@@ -9,7 +9,7 @@ import { cn, weekdayLabel } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { AdminHeader } from "@/components/club/admin-header";
 import { AgendaCreator } from "@/components/club/agenda-creator";
-import { DeleteEventButton, SessionActiveToggle } from "@/components/club/agenda-admin-controls";
+import { DeleteEventButton, EditEventButton, EditSessionButton, SessionActiveToggle } from "@/components/club/agenda-admin-controls";
 
 export default async function ClubAgendaPage() {
   await requireAdminPage();
@@ -51,6 +51,19 @@ export default async function ClubAgendaPage() {
                   {e.capacity ? `/${e.capacity}` : ""} ikut
                 </p>
               </Link>
+              <EditEventButton
+                id={e.id}
+                initial={{
+                  title: e.title,
+                  type: e.type,
+                  startsAt: formatClub(e.startsAt, "yyyy-MM-dd'T'HH:mm"),
+                  endsAt: e.endsAt ? formatClub(e.endsAt, "yyyy-MM-dd'T'HH:mm") : "",
+                  location: e.location,
+                  capacity: e.capacity ? String(e.capacity) : "",
+                  extraFee: e.extraFee ? String(e.extraFee) : "",
+                  notes: e.notes ?? "",
+                }}
+              />
               <DeleteEventButton id={e.id} title={e.title} />
             </div>
           );
@@ -85,7 +98,10 @@ export default async function ClubAgendaPage() {
                 </span>
               </p>
             </div>
-            <span className="text-[11px] font-semibold text-navy/50">{s.active ? "Aktif" : "Dijeda"}</span>
+            <EditSessionButton
+              id={s.id}
+              initial={{ title: s.title, weekday: s.weekday, startTime: s.startTime, endTime: s.endTime ?? "", venue: s.venue, notes: s.notes ?? "" }}
+            />
             <SessionActiveToggle id={s.id} active={s.active} title={s.title} />
           </div>
         ))}

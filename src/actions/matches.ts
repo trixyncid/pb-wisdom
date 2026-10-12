@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
 import { formatGames, matchResult, type GameScore } from "@/lib/badminton";
 import { REPORT_WINDOW_DAYS } from "@/lib/match-report";
+import { logAdmin } from "@/lib/admin-log";
 
 const playerId = z.string().min(1, "Pilih semua pemain");
 
@@ -159,7 +160,7 @@ export async function reviewMatchAction(matchId: string, decision: "APPROVE" | "
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
-    await requireAdmin();
+    const session = await requireAdmin();
     if (decision !== "APPROVE" && decision !== "REJECT") throw new ActionError("Keputusan tidak valid");
 
     await prisma.$transaction(async (tx) => {
@@ -171,8 +172,26 @@ export async function reviewMatchAction(matchId: string, decision: "APPROVE" | "
       if (!match) throw new ActionError("Match tidak ditemukan");
       if (match.status === "CONFIRMED") throw new ActionError("Match ini sudah diverifikasi");
 
-      const players = await tx.matchPlayer.findMany({ where: { matchId }, select: { userId: true } });
+      const players = await tx.matchPlayer.findMany({
+        where: { matchId },
+        select: { userId: true, team: true, user: { select: { name: true, profile: { select: { nickname: true } } } } },
+      });
       const disputed = match.status === "DISPUTED";
+      const side = (t: number) => players.filter((p) => p.team === t).map((p) => p.user.profile?.nickname ?? p.user.name ?? "?").join(" & ");
+      const label = `${side(1)} vs ${side(2)} (${match.score})`;
+      await logAdmin(
+        tx,
+        session.user.id,
+        "MATCH",
+        disputed
+          ? decision === "APPROVE"
+            ? `Mempertahankan skor yang dilaporkan: ${label}`
+            : `Menghapus match yang dilaporkan: ${label}`
+          : decision === "APPROVE"
+            ? `Mengesahkan ${label}`
+            : `Menolak skor ${label}`,
+        disputed && decision === "REJECT" ? undefined : "/play",
+      );
 
       if (disputed) {
         if (decision === "APPROVE") {
