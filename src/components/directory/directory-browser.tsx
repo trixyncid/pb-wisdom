@@ -1,143 +1,113 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Search, Users } from "lucide-react";
+import { useDeferredValue, useMemo, useState } from "react";
+import Link from "next/link";
+import type { SkillLevel } from "@prisma/client";
+import { MessageCircle, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { formatPhone } from "@/lib/phone";
+import { SKILLS, SKILL_TONE, skillLabel, waLink } from "@/lib/people";
+import { cn } from "@/lib/utils";
 
 export type DirectoryMember = {
   id: string;
   role: string;
-  email: string;
-  name: string | null;
   nickname: string;
   phone: string | null;
-  imageUrl: string | null;
+  skill: SkillLevel;
+  imageUrl: string;
 };
 
-const PAGE_SIZE = 10;
-
-export function DirectoryBrowser({
-  members,
-  initialQ = "",
-  initialPage = 1,
-}: {
-  members: DirectoryMember[];
-  initialQ?: string;
-  initialPage?: number;
-}) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [q, setQ] = useState(initialQ);
-  const [pending, start] = useTransition();
-
-  const page = Math.max(1, Number(searchParams.get("page") || initialPage) || 1);
-  const query = (searchParams.get("q") ?? initialQ).trim().toLowerCase();
+export function DirectoryBrowser({ members, currentUserId }: { members: DirectoryMember[]; currentUserId: string }) {
+  const [q, setQ] = useState("");
+  const [skill, setSkill] = useState<SkillLevel | "ALL">("ALL");
+  const query = useDeferredValue(q.trim().toLowerCase());
 
   const filtered = useMemo(() => {
-    if (!query) return members;
-    return members.filter((m) => {
-      const hay = `${m.nickname} ${m.name ?? ""} ${m.email} ${m.phone ?? ""}`.toLowerCase();
-      return hay.includes(query);
-    });
-  }, [members, query]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const slice = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
-
-  function pushParams(nextQ: string, nextPage: number) {
-    const params = new URLSearchParams();
-    if (nextQ.trim()) params.set("q", nextQ.trim());
-    if (nextPage > 1) params.set("page", String(nextPage));
-    const qs = params.toString();
-    start(() => {
-      router.replace(qs ? `${pathname}?${qs}` : pathname);
-    });
-  }
-
-  function onSearchSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    pushParams(q, 1);
-  }
+    const raw = query.replace(/\D/g, "");
+    const digits = raw.startsWith("0") ? `62${raw.slice(1)}` : raw;
+    return members.filter(
+      (m) =>
+        (skill === "ALL" || m.skill === skill) &&
+        (!query || m.nickname.toLowerCase().includes(query) || (digits.length >= 3 && m.phone?.includes(digits))),
+    );
+  }, [members, query, skill]);
 
   return (
-    <div className="space-y-4">
-      <form onSubmit={onSearchSubmit} className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <Input
+    <div className="flex flex-col gap-3">
+      <label className="relative block">
+        <span className="sr-only">Cari member</span>
+        <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Cari nama, email, atau nomor…"
-          className="pl-10"
+          placeholder="Cari nama atau nomor…"
+          className="h-12 w-full rounded-full border border-white bg-white/90 pl-11 pr-4 text-sm text-navy shadow-sm outline-none transition focus:ring-2 focus:ring-accent"
         />
-      </form>
+      </label>
 
-      <p className="text-xs font-medium text-slate-500">
-        {filtered.length} member
-        {query ? ` · hasil “${query}”` : ""}
-        {pending ? " · memuat…" : ""}
-      </p>
-
-      <Card className="space-y-1 p-2">
-        {slice.length === 0 && (
-          <p className="p-3 text-sm text-slate-500">Tidak ada member ditemukan</p>
-        )}
-        {slice.map((m) => (
-          <div
-            key={m.id}
-            className="flex items-center gap-3 rounded-xl px-2 py-2.5"
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="radiogroup" aria-label="Filter level">
+        {[{ value: "ALL" as const, label: "Semua" }, ...SKILLS].map((s) => (
+          <button
+            key={s.value}
+            type="button"
+            role="radio"
+            aria-checked={skill === s.value}
+            onClick={() => setSkill(s.value)}
+            className={cn(
+              "h-9 shrink-0 rounded-full px-4 text-sm font-bold transition",
+              skill === s.value ? "bg-navy text-white shadow-[0_6px_14px_rgba(14,44,60,0.25)]" : "bg-white/80 text-navy/60 hover:text-navy",
+            )}
           >
-            <Avatar className="h-11 w-11">
-              <AvatarImage src={m.imageUrl ?? undefined} />
-              <AvatarFallback>{m.nickname.slice(0, 2)}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-navy">
-                {m.nickname}
-              </p>
-              <p className="truncate text-[11px] text-slate-400">
-                {m.phone ? formatPhone(m.phone) : m.email}
-              </p>
-            </div>
-            {m.role === "ADMIN" && <Badge>Admin</Badge>}
-          </div>
+            {s.label}
+          </button>
         ))}
-      </Card>
-
-      <div className="flex items-center justify-between gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={currentPage <= 1}
-          onClick={() => pushParams(query, currentPage - 1)}
-        >
-          <ChevronLeft className="h-4 w-4" /> Prev
-        </Button>
-        <p className="flex items-center gap-1 text-xs font-bold text-slate-500">
-          <Users className="h-3.5 w-3.5" />
-          {currentPage} / {totalPages}
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={currentPage >= totalPages}
-          onClick={() => pushParams(query, currentPage + 1)}
-        >
-          Next <ChevronRight className="h-4 w-4" />
-        </Button>
       </div>
+
+      <p className="px-1 text-xs font-semibold text-slate-500">{filtered.length} member</p>
+
+      {filtered.length === 0 ? (
+        <p className="rounded-[24px] bg-white/90 p-5 text-center text-sm text-slate-500">Tidak ada member yang cocok.</p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {filtered.map((m) => {
+            const wa = m.id === currentUserId ? null : waLink(m.phone, `Halo ${m.nickname}, aku dari PB Wisdom 👋`);
+            return (
+              <li key={m.id} className="flex items-center gap-2 rounded-[24px] border border-white bg-white/90 p-2 pr-2.5 shadow-[0_8px_22px_rgba(14,44,60,0.05)]">
+                <Link href={`/members/${m.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-[18px] p-1 transition hover:bg-cream">
+                  <Avatar className="size-12">
+                    <AvatarImage src={m.imageUrl} alt="" />
+                    <AvatarFallback className="text-navy">{m.nickname.slice(0, 2)}</AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold text-navy">
+                      {m.nickname}
+                      {m.id === currentUserId && <span className="ml-1.5 text-xs text-accent-ink">kamu</span>}
+                    </span>
+                    <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-bold", SKILL_TONE[m.skill])}>{skillLabel(m.skill)}</span>
+                      {m.role === "ADMIN" && <span className="rounded-full bg-sand px-2 py-0.5 text-[11px] font-bold text-navy">Admin</span>}
+                      {m.phone && <span className="truncate text-[11px] text-slate-400">{formatPhone(m.phone)}</span>}
+                    </span>
+                  </span>
+                </Link>
+                {wa && (
+                  <a
+                    href={wa}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Chat ${m.nickname} di WhatsApp`}
+                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#25d366] text-white shadow-[0_6px_14px_rgba(37,211,102,0.35)] transition active:scale-95"
+                  >
+                    <MessageCircle className="size-5" />
+                  </a>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

@@ -15,6 +15,17 @@ import trophy3d from "@/assets/3d/trophy.png";
 
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
+/** A Link when there is somewhere to go (members), a plain div otherwise (guests). */
+function MaybeLink({ href, className, children }: { href?: string; className?: string; children: React.ReactNode }) {
+  return href ? (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <div className={className}>{children}</div>
+  );
+}
+
 export function Headline({
   lead,
   highlight,
@@ -207,10 +218,11 @@ export function LeaderboardSpotlight({
               const top = idx === 1;
               const rank = top ? 1 : idx === 0 ? 2 : 3;
               return (
-                <div
+                <MaybeLink
                   key={row.userId}
+                  href={userId ? `/members/${row.userId}` : undefined}
                   className={cn(
-                    "relative flex flex-col items-center rounded-[26px] px-2 text-center",
+                    "relative flex flex-col items-center rounded-[26px] px-2 text-center transition active:scale-[0.97]",
                     top ? "bg-accent pb-5 pt-6 text-navy shadow-[0_18px_36px_rgba(238,159,72,0.4)]" : "bg-white/[0.08] pb-4 pt-5",
                   )}
                 >
@@ -236,7 +248,7 @@ export function LeaderboardSpotlight({
                   <p className={cn("text-[11px]", top ? "text-navy/70" : "text-white/50")}>
                     {row.wins}W · {row.losses}L
                   </p>
-                </div>
+                </MaybeLink>
               );
             })}
           </div>
@@ -244,12 +256,12 @@ export function LeaderboardSpotlight({
           {(rest.length > 0 || meBelow) && (
             <ol className="relative mt-4 flex flex-col gap-1.5">
               {rest.map((row, i) => (
-                <SpotlightRow key={row.userId} row={row} rank={i + 4} isMe={row.userId === userId} />
+                <SpotlightRow key={row.userId} row={row} rank={i + 4} isMe={row.userId === userId} linked={Boolean(userId)} />
               ))}
               {meBelow && (
                 <>
                   <li aria-hidden className="text-center text-xs leading-none text-white/30">···</li>
-                  <SpotlightRow row={meBelow.row} rank={meBelow.rank} isMe />
+                  <SpotlightRow row={meBelow.row} rank={meBelow.rank} isMe linked />
                 </>
               )}
             </ol>
@@ -269,9 +281,13 @@ export function LeaderboardSpotlight({
   );
 }
 
-function SpotlightRow({ row, rank, isMe }: { row: LeaderboardRow; rank: number; isMe: boolean }) {
+function SpotlightRow({ row, rank, isMe, linked }: { row: LeaderboardRow; rank: number; isMe: boolean; linked: boolean }) {
   return (
-    <li className={cn("flex items-center gap-3 rounded-[20px] p-2 pr-3", isMe ? "bg-white/[0.14] ring-1 ring-accent" : "bg-white/[0.06]")}>
+    <li>
+      <MaybeLink
+        href={linked ? `/members/${row.userId}` : undefined}
+        className={cn("flex items-center gap-3 rounded-[20px] p-2 pr-3 transition", isMe ? "bg-white/[0.14] ring-1 ring-accent" : "bg-white/[0.06]", linked && "hover:bg-white/[0.12]")}
+      >
       <span className="font-display w-6 text-center text-sm font-extrabold text-white/40">{rank}</span>
       <Avatar className="size-9">
         <AvatarImage src={row.imageUrl ?? undefined} alt="" />
@@ -285,6 +301,7 @@ function SpotlightRow({ row, rank, isMe }: { row: LeaderboardRow; rank: number; 
         {row.wins}W · {row.losses}L
       </span>
       <span className="font-display w-14 text-right text-base font-extrabold text-accent">{row.winrate}%</span>
+      </MaybeLink>
     </li>
   );
 }

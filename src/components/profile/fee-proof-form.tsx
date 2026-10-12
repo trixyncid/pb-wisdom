@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { withToast } from "@/lib/with-toast";
 import { submitFeeProofAction } from "@/actions/iuran";
@@ -29,39 +30,40 @@ export function FeeProofForm({ dueId }: { dueId: string }) {
   }
 
   return (
-    <div className="space-y-2">
-      <label htmlFor={inputId} className="block text-xs font-semibold text-navy">
-        Foto / screenshot bukti transfer
-      </label>
-      <input
-        id={inputId}
-        type="file"
-        accept="image/*"
-        onChange={(e) => onFile(e.target.files?.[0])}
-        className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-sand file:px-3 file:py-2 file:text-sm file:font-semibold file:text-navy"
-      />
-      {image && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={image}
-          alt="Pratinjau bukti transfer"
-          className="max-h-48 rounded-xl border border-navy/8 object-contain"
-        />
+    <div className="flex flex-col gap-2.5">
+      {image ? (
+        <div className="relative w-fit">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={image} alt="Pratinjau bukti transfer" className="max-h-48 rounded-2xl border border-navy/8 object-contain" />
+          <button type="button" onClick={() => setImage(null)} aria-label="Ganti foto" className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-navy/70 text-white">
+            <X className="size-4" />
+          </button>
+        </div>
+      ) : (
+        <label
+          htmlFor={inputId}
+          className="flex cursor-pointer flex-col items-center gap-1 rounded-2xl border-2 border-dashed border-navy/15 px-4 py-5 text-center transition hover:border-accent hover:bg-accent-soft/50"
+        >
+          <ImagePlus className="size-6 text-accent-ink" />
+          <span className="text-sm font-bold text-navy">{preparing ? "Memproses foto…" : "Upload bukti transfer"}</span>
+          <span className="text-xs text-slate-500">Foto atau screenshot dari m-banking</span>
+        </label>
       )}
-      <Button
-        size="sm"
-        disabled={pending || preparing || !image}
-        onClick={() =>
-          start(async () => {
-            if (!image) return;
-            const res = await withToast(submitFeeProofAction(dueId, image), { success: "Bukti dikirim" });
-            if (!res.ok) return;
-            setImage(null);
-          })
-        }
-      >
-        {preparing ? "Memproses foto…" : pending ? "Mengirim…" : "Kirim bukti"}
-      </Button>
+      <input id={inputId} type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} className="sr-only" />
+      {image && (
+        <Button
+          disabled={pending || preparing}
+          className="w-full"
+          onClick={() =>
+            start(async () => {
+              const res = await withToast(submitFeeProofAction(dueId, image), { success: "Bukti dikirim, tunggu verifikasi admin" });
+              if (res.ok) setImage(null);
+            })
+          }
+        >
+          {pending ? "Mengirim…" : "Kirim bukti"}
+        </Button>
+      )}
     </div>
   );
 }

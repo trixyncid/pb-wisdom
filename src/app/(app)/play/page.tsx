@@ -7,14 +7,9 @@ import { getLeaderboard, getMemberWinrate } from "@/lib/stats";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScoreLauncher } from "@/components/play/score-launcher";
-import { MatchCard, type MatchCardPlayer } from "@/components/play/match-card";
+import { MatchCard } from "@/components/play/match-card";
+import { nameOf, person, toPlayers } from "@/lib/people";
 import { ReviewMatchButtons } from "@/components/play/review-match-buttons";
-
-const person = { id: true, name: true, profile: { select: { nickname: true, updatedAt: true } } } as const;
-type Person = { id: string; name: string | null; profile: { nickname: string; updatedAt: Date } | null };
-const nameOf = (u: Person) => u.profile?.nickname ?? u.name ?? "Player";
-const toPlayers = (ps: { team: number; won: boolean | null; user: Person }[]): MatchCardPlayer[] =>
-  ps.map((p) => ({ id: p.user.id, name: nameOf(p.user), avatar: avatarUrl(p.user.id, p.user.profile?.updatedAt), team: p.team, won: p.won }));
 
 const MODES = [
   { key: "semua", label: "Semua", filter: "ALL" },
@@ -185,7 +180,8 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
         ) : (
           <ol className="flex flex-col gap-1.5 rounded-[26px] border border-white bg-white/90 p-2 shadow-[0_10px_28px_rgba(14,44,60,0.06)]">
             {leaderboard.map((row, i) => (
-              <li key={row.userId} className={cn("flex items-center gap-3 rounded-[20px] p-2 pr-3", row.userId === me && "bg-accent-soft ring-1 ring-accent")}>
+              <li key={row.userId}>
+                <Link href={`/members/${row.userId}`} className={cn("flex items-center gap-3 rounded-[20px] p-2 pr-3 transition hover:bg-cream", row.userId === me && "bg-accent-soft ring-1 ring-accent")}>
                 <span
                   className={cn(
                     "font-display flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold",
@@ -208,6 +204,7 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
                   </p>
                 </div>
                 <span className="font-display text-lg font-extrabold text-navy">{row.winrate}%</span>
+                </Link>
               </li>
             ))}
           </ol>

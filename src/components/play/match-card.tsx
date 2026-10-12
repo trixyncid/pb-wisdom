@@ -1,3 +1,5 @@
+import { Fragment } from "react";
+import Link from "next/link";
 import { id as localeId } from "date-fns/locale";
 import { Clock } from "lucide-react";
 import { parseGames } from "@/lib/badminton";
@@ -51,7 +53,14 @@ export function MatchCard({
               ))}
             </div>
             <p className={cn("min-w-0 flex-1 truncate text-sm", won(t) ? "font-bold text-navy" : "font-medium text-navy/55")}>
-              {team(t).map((p) => p.name).join(" & ")}
+              {team(t).map((p, i) => (
+                <Fragment key={p.id}>
+                  {i > 0 && " & "}
+                  <Link href={`/members/${p.id}`} className="hover:underline">
+                    {p.name}
+                  </Link>
+                </Fragment>
+              ))}
             </p>
             <div className="flex gap-1">
               {games.map((g, i) => {
