@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
 import { isDemoMode, DEMO_ROLE_COOKIE, type DemoRole } from "@/lib/demo/mode";
 import { getDemoUserByRole } from "@/lib/demo/data";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { SESSION_MAX_AGE, SESSION_UPDATE_AGE } from "@/lib/session-config";
 import type { Role } from "@prisma/client";
 import type { Provider } from "next-auth/providers";
 import type { Session } from "next-auth";
@@ -135,7 +136,7 @@ if (
 
 const nextAuth = NextAuth({
   adapter: isDemoMode() ? undefined : PrismaAdapter(prisma as never),
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: SESSION_MAX_AGE, updateAge: SESSION_UPDATE_AGE },
   trustHost: true,
   pages: {
     signIn: "/login",
