@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { connection } from "next/server";
 import { KeyRound, MessageCircle, ShieldCheck } from "lucide-react";
 import { prisma } from "@/lib/db";
 import logoImg from "@/assets/brand/logo.png";
@@ -9,6 +10,8 @@ export const metadata = { title: "Lupa password · PB Wisdom" };
 // No email is sent by this app: an admin creates a one-time reset link and
 // shares it over WhatsApp. Admin phone numbers are not shown on this public page.
 export default async function ForgotPasswordPage() {
+  // The admin list comes from the database: render per request, not at build.
+  await connection();
   const admins = await prisma.user.findMany({
     where: { role: "ADMIN" },
     select: { id: true, name: true, profile: { select: { nickname: true } } },
