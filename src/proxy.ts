@@ -7,6 +7,8 @@ import { SESSION_MAX_AGE, SESSION_UPDATE_AGE } from "@/lib/session-config";
 const alwaysPublic = [
   "/login",
   "/register",
+  "/lupa-password",
+  "/reset-password",
   "/api/auth",
   "/api/cron",
   "/api/health",

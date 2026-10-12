@@ -4,10 +4,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { MemberAdminActions } from "@/components/club/member-admin-actions";
+import { ResetLinkButton } from "@/components/club/reset-link-button";
 import { avatarUrl } from "@/lib/avatar";
 
 export default async function ClubMembersPage() {
-  await requireAdminPage();
+  const session = await requireAdminPage();
   const users = await prisma.user.findMany({
     where: { role: { in: ["PENDING", "MEMBER", "ADMIN", "REJECTED"] } },
     include: { profile: true },
@@ -43,11 +44,14 @@ export default async function ClubMembersPage() {
                 </div>
               </div>
             </div>
-            <MemberAdminActions
-              userId={u.id}
-              role={u.role}
-              status={u.profile?.status ?? "ACTIVE"}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              {(u.role === "MEMBER" || u.role === "ADMIN") && u.id !== session.user.id && <ResetLinkButton userId={u.id} />}
+              <MemberAdminActions
+                userId={u.id}
+                role={u.role}
+                status={u.profile?.status ?? "ACTIVE"}
+              />
+            </div>
           </Card>
         ))}
       </div>

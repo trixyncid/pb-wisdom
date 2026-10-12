@@ -38,6 +38,8 @@ declare module "next-auth/jwt" {
     id: string;
     role: Role;
     locale: string;
+    /** User.sessionVersion at sign-in; a mismatch ends the session. */
+    sv?: number;
   }
 }
 
@@ -174,7 +176,7 @@ const nextAuth = NextAuth({
 
       // Re-read the role on every call so a demotion or rejection applies
       // immediately. Only three small columns: avatars and hashes stay out.
-      const roleSelect = { role: true, locale: true, name: true } as const;
+      const roleSelect = { role: true, locale: true, name: true, sessionVersion: true } as const;
       if (user) {
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id! },
@@ -183,6 +185,7 @@ const nextAuth = NextAuth({
         token.id = user.id!;
         token.role = dbUser?.role ?? (user as { role?: Role }).role ?? "PENDING";
         token.locale = dbUser?.locale ?? "id";
+        token.sv = dbUser?.sessionVersion ?? 0;
       } else if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id },
@@ -191,6 +194,13 @@ const nextAuth = NextAuth({
         // The account no longer exists (deleted, or the database was reset):
         // end the session instead of trusting the role cached in the cookie.
         if (!dbUser) return null;
+        // A server-side session update (after changing the password on this
+        // device) adopts the new version; any other mismatch means the
+        // sessions were revoked (password reset, "log out everywhere").
+        if (trigger === "update" && (session as { refreshSessionVersion?: boolean } | undefined)?.refreshSessionVersion) {
+          token.sv = dbUser.sessionVersion;
+        }
+        if ((token.sv ?? 0) !== dbUser.sessionVersion) return null;
         token.role = dbUser.role;
         token.locale = dbUser.locale;
         token.name = dbUser.name;
@@ -253,6 +263,8 @@ export async function getDemoSession(): Promise<Session> {
 }
 
 export const handlers = nextAuth.handlers;
+/** Re-issue the session cookie from a Server Action (Auth.js v5). */
+export const updateSession = nextAuth.unstable_update;
 export const signIn = nextAuth.signIn;
 export const signOut = nextAuth.signOut;
 

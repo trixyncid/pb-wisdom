@@ -78,16 +78,18 @@ enum NotificationType {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  passwordHash  String?
-  role          Role      @default(PENDING)
-  locale        String    @default("id")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  passwordHash   String?
+  role           Role      @default(PENDING)
+  /// Bumped to end every session of this user (password change, logout everywhere).
+  sessionVersion Int       @default(0)
+  locale         String    @default("id")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   accounts          Account[]
   sessions          Session[]

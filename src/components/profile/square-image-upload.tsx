@@ -58,6 +58,7 @@ export function SquareImageUpload({
   const inputRef = useRef<HTMLInputElement>(null);
   const [raw, setRaw] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [croppedArea, setCroppedArea] = useState<Area | null>(null);
   const [busy, setBusy] = useState(false);
@@ -96,11 +97,13 @@ export function SquareImageUpload({
         aria-label="Upload foto profil"
       >
         <span className="absolute inset-0 overflow-hidden rounded-full ring-4 ring-accent/30 shadow-[0_12px_30px_rgba(238,159,72,0.25)]">
-          {value ? (
+          {value && value !== brokenSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={value}
               alt="Avatar"
+              // No photo yet: /avatar answers 404, so fall back to initials.
+              onError={() => setBrokenSrc(value)}
               className="h-full w-full object-cover"
             />
           ) : (

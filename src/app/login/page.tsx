@@ -76,6 +76,9 @@ export default function LoginPage() {
               required
             />
           </div>
+          <a href="/lupa-password" className="-mt-1 block text-right text-xs font-semibold text-accent-ink hover:underline">
+            Lupa password?
+          </a>
           <Button type="submit" className="w-full" disabled={pending}>
             {pending ? "Masuk…" : "Masuk"}
           </Button>

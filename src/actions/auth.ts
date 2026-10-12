@@ -90,7 +90,13 @@ export async function registerAction(input: z.infer<typeof registerSchema>) {
 // The cap leaves room for older browsers that fall back to JPEG.
 const profileSchema = z.object({
   nickname: z.string().trim().min(1, "Nickname wajib diisi").max(40, "Nickname terlalu panjang"),
-  phone: z.string().max(24).optional().transform((v) => (v ? normalizePhone(v) || undefined : undefined)),
+  // Omitted: keep the stored number. Empty: clear it.
+  phone: z
+    .string()
+    .max(24)
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === "" ? null : normalizePhone(v) || undefined)),
+  skill: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]).optional(),
   imageUrl: z
     .string()
     .max(200_000, "Foto terlalu besar")
@@ -98,7 +104,7 @@ const profileSchema = z.object({
     .optional(),
 });
 
-export async function updateProfileAction(input: z.infer<typeof profileSchema>) {
+export async function updateProfileAction(input: z.input<typeof profileSchema>) {
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
@@ -114,11 +120,13 @@ export async function updateProfileAction(input: z.infer<typeof profileSchema>) 
             create: {
               nickname: data.nickname,
               phone: data.phone,
+              skill: data.skill,
               imageUrl: data.imageUrl,
             },
             update: {
               nickname: data.nickname,
               phone: data.phone,
+              ...(data.skill ? { skill: data.skill } : {}),
               ...(data.imageUrl ? { imageUrl: data.imageUrl } : {}),
             },
           },
@@ -128,6 +136,8 @@ export async function updateProfileAction(input: z.infer<typeof profileSchema>) 
     });
 
     revalidatePath("/profile");
+    revalidatePath("/directory");
+    revalidatePath(`/members/${session.user.id}`);
     revalidatePath("/");
     return {};
   });
@@ -146,7 +156,8 @@ export async function approveMemberAction(userId: string, approve: boolean) {
       // Approve/reject is for members only; it must never demote an admin.
       const changed = await tx.user.updateMany({
         where: { id: userId, role: { not: "ADMIN" } },
-        data: { role: approve ? "MEMBER" : "REJECTED" },
+        // Rejecting also ends any session the account still has.
+        data: approve ? { role: "MEMBER" } : { role: "REJECTED", sessionVersion: { increment: 1 } },
       });
       if (changed.count === 0) {
         throw new ActionError("Akun ini tidak bisa diubah");
