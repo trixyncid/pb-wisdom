@@ -1,60 +1,48 @@
+import { id as localeId } from "date-fns/locale";
 import { requireAdminPage } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { MemberAdminActions } from "@/components/club/member-admin-actions";
-import { ResetLinkButton } from "@/components/club/reset-link-button";
 import { avatarUrl } from "@/lib/avatar";
+import { formatClub } from "@/lib/time";
+import { AdminHeader } from "@/components/club/admin-header";
+import { MemberManager } from "@/components/club/member-manager";
 
-export default async function ClubMembersPage() {
+export default async function ClubMembersPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const session = await requireAdminPage();
+  const { tab } = await searchParams;
   const users = await prisma.user.findMany({
-    where: { role: { in: ["PENDING", "MEMBER", "ADMIN", "REJECTED"] } },
-    include: { profile: true },
-    orderBy: [{ role: "asc" }, { createdAt: "desc" }],
+    // Deleted accounts are anonymised rows; nothing to manage there.
+    where: { NOT: { email: { endsWith: "@deleted.invalid" } } },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+      profile: { select: { nickname: true, phone: true, status: true, skill: true, joinDate: true, updatedAt: true } },
+    },
+    orderBy: [{ createdAt: "desc" }],
   });
 
   return (
-    <>
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-navy">Members</h1>
-        <p className="text-sm text-slate-400">Approve, deactivate, directory</p>
-      </div>
-      <div className="space-y-2">
-        {users.map((u) => (
-          <Card key={u.id} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <Avatar>
-                <AvatarImage src={avatarUrl(u.id, u.profile?.updatedAt)} />
-                <AvatarFallback>
-                  {(u.profile?.nickname ?? "?").slice(0, 2)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="truncate font-medium text-navy">
-                  {u.profile?.nickname ?? u.name}
-                </p>
-                <p className="truncate text-xs text-slate-400">{u.email}</p>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  <Badge>{u.role}</Badge>
-                  {u.profile && (
-                    <Badge className="bg-white/10">{u.profile.status}</Badge>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {(u.role === "MEMBER" || u.role === "ADMIN") && u.id !== session.user.id && <ResetLinkButton userId={u.id} />}
-              <MemberAdminActions
-                userId={u.id}
-                role={u.role}
-                status={u.profile?.status ?? "ACTIVE"}
-              />
-            </div>
-          </Card>
-        ))}
-      </div>
-    </>
+    <div className="flex flex-col gap-4 pt-2">
+      <AdminHeader title="Members" desc="Setujui pendaftar, atur admin dan status member." />
+      <MemberManager
+        currentUserId={session.user.id}
+        initialTab={tab}
+        members={users
+          .map((u) => ({
+            id: u.id,
+            nickname: u.profile?.nickname ?? u.name ?? "Player",
+            email: u.email,
+            phone: u.profile?.phone ?? null,
+            role: u.role,
+            status: u.profile?.status ?? "ACTIVE",
+            skill: u.profile?.skill ?? "BEGINNER",
+            avatar: avatarUrl(u.id, u.profile?.updatedAt),
+            joined: formatClub(u.profile?.joinDate ?? u.createdAt, "d MMM yyyy", { locale: localeId }),
+          }))
+          .sort((a, b) => a.nickname.localeCompare(b.nickname, "id"))}
+      />
+    </div>
   );
 }

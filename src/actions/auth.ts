@@ -155,7 +155,8 @@ export async function approveMemberAction(userId: string, approve: boolean) {
     await prisma.$transaction(async (tx) => {
       // Approve/reject is for members only; it must never demote an admin.
       const changed = await tx.user.updateMany({
-        where: { id: userId, role: { not: "ADMIN" } },
+        // Deleted accounts are anonymised as REJECTED and must stay that way.
+        where: { id: userId, role: { not: "ADMIN" }, NOT: { email: { endsWith: "@deleted.invalid" } } },
         // Rejecting also ends any session the account still has.
         data: approve ? { role: "MEMBER" } : { role: "REJECTED", sessionVersion: { increment: 1 } },
       });
@@ -185,14 +186,21 @@ export async function deactivateMemberAction(userId: string, active: boolean) {
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
-    await requireAdmin();
+    const session = await requireAdmin();
+    if (userId === session.user.id) throw new ActionError("Kamu tidak bisa menonaktifkan akunmu sendiri");
 
-    await prisma.memberProfile.update({
+    // Members who never filled in their profile have no row yet.
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, role: true } });
+    if (!user || (user.role !== "MEMBER" && user.role !== "ADMIN")) throw new ActionError("Member tidak ditemukan");
+    const status = active ? "ACTIVE" : "INACTIVE";
+    await prisma.memberProfile.upsert({
       where: { userId },
-      data: { status: active ? "ACTIVE" : "INACTIVE" },
+      create: { userId, nickname: user.name ?? "Player", status },
+      update: { status },
     });
 
     revalidatePath("/club/members");
+    revalidatePath("/directory");
     return {};
   });
 }

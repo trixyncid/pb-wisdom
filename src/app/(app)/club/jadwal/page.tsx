@@ -7,6 +7,7 @@ import { AGENDA_KINDS } from "@/lib/agenda";
 import { formatClub, hoursAgo } from "@/lib/time";
 import { cn, weekdayLabel } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { AdminHeader } from "@/components/club/admin-header";
 import { AgendaCreator } from "@/components/club/agenda-creator";
 import { DeleteEventButton, SessionActiveToggle } from "@/components/club/agenda-admin-controls";
 
@@ -23,11 +24,7 @@ export default async function ClubAgendaPage() {
 
   return (
     <div className="flex flex-col gap-6 pt-2">
-      <div>
-        <p className="text-sm font-bold uppercase tracking-[0.16em] text-accent-ink">Club admin</p>
-        <h1 className="font-display mt-1 text-[2rem] font-extrabold leading-tight text-navy">Agenda</h1>
-        <p className="mt-1 text-sm text-slate-500">Tambah sparring, turnamen, gathering atau latihan rutin.</p>
-      </div>
+      <AdminHeader title="Agenda" desc="Tambah sparring, turnamen, gathering atau latihan rutin." />
 
       <Card className="p-4">
         <AgendaCreator />
