@@ -19,6 +19,13 @@ x-app-env: &app-env
   CRON_SECRET: local-cron-secret
   AUTH_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID:-}
   AUTH_GOOGLE_CLIENT_SECRET: ${AUTH_GOOGLE_CLIENT_SECRET:-}
+  # Optional: DigitalOcean Spaces from .env (empty = images stay in the database)
+  SPACES_REGION: ${SPACES_REGION:-}
+  SPACES_BUCKET: ${SPACES_BUCKET:-}
+  SPACES_KEY: ${SPACES_KEY:-}
+  SPACES_SECRET: ${SPACES_SECRET:-}
+  SPACES_CDN_URL: ${SPACES_CDN_URL:-}
+  SPACES_PREFIX: ${SPACES_PREFIX:-pb-wisdom-dev}
 
 services:
   db:
