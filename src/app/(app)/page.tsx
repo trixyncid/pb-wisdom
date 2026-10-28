@@ -64,7 +64,7 @@ export default async function HomePage() {
   }
 
   const name = (p: (typeof recentMatches)[number]["players"][number]) =>
-    p.user.profile?.nickname ?? p.user.name ?? "Player";
+    p.user ? (p.user.profile?.nickname ?? p.user.name ?? "Player") : (p.guest?.name ?? "Tamu");
   return (
     <GuestHome
       occurrence={nextTraining}
@@ -95,6 +95,7 @@ async function loadGuestData() {
         players: {
           include: {
             user: { select: { name: true, profile: { select: { nickname: true } } } },
+            guest: { select: { name: true } },
           },
         },
       },

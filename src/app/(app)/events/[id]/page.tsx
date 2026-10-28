@@ -5,7 +5,6 @@ import { CalendarDays, Check, ChevronLeft, Clock, MapPin, Wallet } from "lucide-
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { appUrl } from "@/lib/app-url";
-import { avatarUrl } from "@/lib/avatar";
 import { AGENDA_KINDS } from "@/lib/agenda";
 import { eventPhotoUrl } from "@/lib/event-photo";
 import { formatClub, hoursAgo } from "@/lib/time";
@@ -16,6 +15,8 @@ import { EventCover } from "@/components/events/event-cover";
 import { EventGallery } from "@/components/events/event-gallery";
 import { EventFeePanel } from "@/components/events/event-fee-panel";
 import { EditEventButton } from "@/components/club/agenda-admin-controls";
+import { AgendaGuests } from "@/components/jadwal/agenda-guests";
+import { participant, participantName, toPerson } from "@/lib/people";
 
 const person = { id: true, name: true, profile: { select: { nickname: true, updatedAt: true } } } as const;
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
@@ -28,7 +29,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const event = await prisma.event.findUnique({
     where: { id },
     include: {
-      rsvps: { orderBy: { updatedAt: "asc" }, include: { user: { select: person } } },
+      rsvps: { orderBy: { updatedAt: "asc" }, include: participant },
       photos: { orderBy: { createdAt: "desc" }, include: { uploader: { select: person } } },
     },
   });
@@ -43,6 +44,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
   const fill = event.capacity ? Math.min(100, Math.round((going.length / event.capacity) * 100)) : null;
   const isPast = (event.endsAt ?? event.startsAt) < hoursAgo(3);
   const isAdmin = session.user.role === "ADMIN";
+  const knownGuests = isAdmin ? await prisma.guest.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" }, take: 300 }) : [];
 
   return (
     <div className="flex flex-col gap-5 pt-1">
@@ -142,8 +144,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
               .filter((r) => r.status === "GOING" || r.paidAt)
               .map((r) => ({
                 rsvpId: r.id,
-                name: name(r.user),
-                avatar: avatarUrl(r.user.id, r.user.profile?.updatedAt),
+                name: r.guest ? `${r.guest.name} (tamu)` : participantName(r),
+                avatar: toPerson(r).avatar,
                 paid: Boolean(r.paidAt),
                 going: r.status === "GOING",
               }))}
@@ -152,7 +154,17 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       ) : null}
 
       <section className="rise flex flex-col gap-3" style={rise(2)}>
-        <h2 className="px-1 font-display text-xl font-bold text-navy">Peserta</h2>
+        <div className="flex items-center justify-between gap-2 px-1">
+          <h2 className="font-display text-xl font-bold text-navy">Peserta</h2>
+          {isAdmin && (
+            <AgendaGuests
+              target={{ type: "event", eventId: event.id }}
+              title={event.title}
+              guests={event.rsvps.flatMap((r) => (r.guest ? [{ rowId: r.id, guestId: r.guest.id, name: r.guest.name }] : []))}
+              known={knownGuests}
+            />
+          )}
+        </div>
         {going.length === 0 ? (
           <p className="px-1 text-sm text-slate-500">Belum ada yang ikut. Ajak teman dengan tombol share!</p>
         ) : (
@@ -160,10 +172,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             {going.map((r) => (
               <div key={r.id} className="flex flex-col items-center gap-1 text-center">
                 <Avatar className={cn("size-12", r.userId === session.user.id && "ring-2 ring-accent")}>
-                  <AvatarImage src={avatarUrl(r.user.id, r.user.profile?.updatedAt)} alt="" />
-                  <AvatarFallback className="text-navy">{name(r.user).slice(0, 2)}</AvatarFallback>
+                  <AvatarImage src={toPerson(r).avatar} alt="" />
+                  <AvatarFallback className="text-navy">{participantName(r).slice(0, 2)}</AvatarFallback>
                 </Avatar>
-                <span className="w-full truncate text-xs font-semibold text-navy">{name(r.user)}</span>
+                <span className="w-full truncate text-xs font-semibold text-navy">{participantName(r)}</span>
+                {r.guest && <span className="-mt-1 text-[10px] text-slate-400">tamu</span>}
               </div>
             ))}
           </div>
@@ -173,7 +186,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
             <span className="font-semibold text-accent-ink">Waitlist:</span>
             {waitlist.map((r, i) => (
               <span key={r.id} className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent-ink">
-                {i + 1}. {name(r.user)}
+                {i + 1}. {participantName(r)}
               </span>
             ))}
           </div>

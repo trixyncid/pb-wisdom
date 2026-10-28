@@ -113,6 +113,7 @@ model User {
   notifications     Notification[]
   announcements     Announcement[]
   adminLogs         AdminLog[]
+  guestsAdded       Guest[]
 
   @@index([role])
 }
@@ -218,18 +219,22 @@ model TrainingOccurrence {
   @@index([date])
 }
 
+/// Exactly one of userId / guestId is set (CHECK constraint in the migration).
 model SessionAttendance {
   id           String           @id @default(cuid())
   occurrenceId String
-  userId       String
+  userId       String?
+  guestId      String?
   status       AttendanceStatus @default(GOING)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
   occurrence TrainingOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
-  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guest      Guest?             @relation(fields: [guestId], references: [id], onDelete: Cascade)
 
   @@unique([occurrenceId, userId])
+  @@unique([occurrenceId, guestId])
   @@index([userId])
 }
 
@@ -288,10 +293,12 @@ model Event {
   @@index([startsAt])
 }
 
+/// Exactly one of userId / guestId is set (CHECK constraint in the migration).
 model EventRsvp {
   id        String     @id @default(cuid())
   eventId   String
-  userId    String
+  userId    String?
+  guestId   String?
   status    RsvpStatus @default(GOING)
   attended  Boolean?
   /// Admin marked the event fee as paid.
@@ -299,10 +306,12 @@ model EventRsvp {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guest Guest? @relation(fields: [guestId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
+  @@unique([eventId, guestId])
   @@index([userId])
 }
 
@@ -327,6 +336,8 @@ model Match {
   status        MatchStatus @default(PENDING)
   playedAt      DateTime    @default(now())
   score         String
+  /// Counts toward the leaderboard and winrates once confirmed.
+  ranked        Boolean     @default(true)
   eventId       String?
   loggedById    String
   notes         String?
@@ -344,19 +355,39 @@ model Match {
   @@index([status, playedAt])
 }
 
+/// Exactly one of userId / guestId is set (CHECK constraint in the migration).
+/// Guests never get stats; members' results against them still count.
 model MatchPlayer {
   id        String   @id @default(cuid())
   matchId   String
-  userId    String
+  userId    String?
+  guestId   String?
   team      Int
   confirmed Boolean  @default(false)
   won       Boolean?
 
-  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guest Guest? @relation(fields: [guestId], references: [id], onDelete: Restrict)
 
   @@unique([matchId, userId])
+  @@unique([matchId, guestId])
   @@index([userId])
+}
+
+/// A non-member who plays or joins: a name only, reused across matches and agenda.
+model Guest {
+  id          String   @id @default(cuid())
+  name        String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  createdBy    User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  matchPlayers MatchPlayer[]
+  attendances  SessionAttendance[]
+  rsvps        EventRsvp[]
+
+  @@index([name])
 }
 
 model Notification {

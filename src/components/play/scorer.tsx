@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, Check, Minus, Plus, Search, Trophy, UserPlus, X } from "lucide-react";
-import { logMatchAction } from "@/actions/matches";
+import { ArrowLeft, Check, Minus, Plus, Search, Trophy, UserPlus, UserRound, X } from "lucide-react";
+import { logMatchAction, type PlayerSlot } from "@/actions/matches";
 import { withToast } from "@/lib/with-toast";
 import { canScore, gameWinner, matchResult, POINT_CAP, POINTS_TO_WIN, type GameScore } from "@/lib/badminton";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,15 @@ import shuttle3d from "@/assets/3d/shuttle.png";
 import logoLight from "@/assets/brand/logo-light.png";
 
 export type ScorerMember = { id: string; name: string; avatar: string };
+export type ScorerGuest = { id: string; name: string };
+
+// Slot keys: a member's user id, "g:<guestId>" for a saved guest, "n:<name>" for a new one.
+const isGuestKey = (key: string) => key.startsWith("g:") || key.startsWith("n:");
+function toSlot(key: string): PlayerSlot {
+  if (key.startsWith("g:")) return { guestId: key.slice(2) };
+  if (key.startsWith("n:")) return { guestName: key.slice(2) };
+  return { userId: key };
+}
 type MatchType = "SINGLES" | "DOUBLES";
 type Step = "players" | "score" | "review" | "done";
 type Slot = { team: 0 | 1; index: 0 | 1 };
@@ -31,11 +40,13 @@ const springy = { type: "spring", stiffness: 520, damping: 30 } as const;
  */
 export function Scorer({
   members,
+  guests,
   currentUserId,
   isAdmin,
   onClose,
 }: {
   members: ScorerMember[];
+  guests: ScorerGuest[];
   currentUserId: string;
   isAdmin: boolean;
   onClose: () => void;
@@ -52,14 +63,20 @@ export function Scorer({
   const [current, setCurrent] = useState(0);
   const [pending, start] = useTransition();
   const [result, setResult] = useState<"PENDING" | "CONFIRMED" | null>(null);
+  const [ranked, setRanked] = useState(true);
 
   const size = type === "SINGLES" ? 1 : 2;
   const lineup: [string[], string[]] = [
     teams[0].slice(0, size).filter(Boolean) as string[],
     teams[1].slice(0, size).filter(Boolean) as string[],
   ];
-  const playersReady = lineup[0].length === size && lineup[1].length === size;
-  const byId = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
+  const hasMember = [...lineup[0], ...lineup[1]].some((k) => !isGuestKey(k));
+  const playersReady = lineup[0].length === size && lineup[1].length === size && hasMember;
+  const byId = useMemo(
+    () => new Map<string, ScorerMember>([...members.map((m) => [m.id, m] as const), ...guests.map((g) => [`g:${g.id}`, { id: `g:${g.id}`, name: g.name, avatar: "" }] as const)]),
+    [members, guests],
+  );
+  const who = (key: string): ScorerMember => byId.get(key) ?? { id: key, name: key.slice(2), avatar: "" };
   const finished = games.filter((g) => gameWinner(g) !== null);
   const verdict = matchResult(finished);
   const decided = isDecided(games, games.length - 1, bestOf) && !("error" in verdict);
@@ -132,10 +149,11 @@ export function Scorer({
   function submit() {
     start(async () => {
       const res = await withToast(
-        logMatchAction({ type, team1Ids: lineup[0], team2Ids: lineup[1], games: finished }),
+        logMatchAction({ type, team1: lineup[0].map(toSlot), team2: lineup[1].map(toSlot), games: finished, ranked }),
         {
           loading: "Mengirim skor…",
-          success: (r) => ("status" in r && r.status === "CONFIRMED" ? "Match masuk leaderboard" : "Skor terkirim, menunggu verifikasi admin"),
+          success: (r) =>
+            "status" in r && r.status === "CONFIRMED" ? (ranked ? "Match masuk leaderboard" : "Match disimpan") : "Skor terkirim, menunggu verifikasi admin",
         },
       );
       if (res.ok) {
@@ -257,7 +275,7 @@ export function Scorer({
                     <div className="flex gap-5">
                       {Array.from({ length: size }, (_, index) => {
                         const id = teams[team][index];
-                        const m = id ? byId.get(id) : null;
+                        const m = id ? who(id) : null;
                         return (
                           <motion.button
                             key={index}
@@ -279,6 +297,7 @@ export function Scorer({
                               </span>
                             )}
                             <span className="w-full truncate text-center text-sm font-semibold">{m ? m.name : "Pilih"}</span>
+                            {id && isGuestKey(id) && <span className="-mt-1 text-[11px] font-semibold text-white/50">tamu</span>}
                           </motion.button>
                         );
                       })}
@@ -297,7 +316,7 @@ export function Scorer({
                   setStep("score");
                 }}
               >
-                {playersReady ? "Lanjut ke skor" : "Pilih semua pemain dulu"}
+                {playersReady ? "Lanjut ke skor" : lineup[0].length === size && lineup[1].length === size ? "Minimal satu pemain harus member" : "Pilih semua pemain dulu"}
               </PrimaryButton>
             </StepPane>
           )}
@@ -308,7 +327,7 @@ export function Scorer({
               games={games}
               current={current}
               onSelectGame={setCurrent}
-              teams={lineup.map((ids) => ids.map((id) => byId.get(id)!)) as [ScorerMember[], ScorerMember[]]}
+              teams={lineup.map((ids) => ids.map(who)) as [ScorerMember[], ScorerMember[]]}
               gamesWon={[
                 finished.slice(0, current).filter((g) => gameWinner(g) === 1).length,
                 finished.slice(0, current).filter((g) => gameWinner(g) === 2).length,
@@ -336,7 +355,7 @@ export function Scorer({
                 <div>
                   <p className="text-sm font-bold uppercase tracking-[0.18em] text-accent">Pemenang</p>
                   <p className="font-display mt-1 text-3xl font-extrabold">
-                    {lineup[verdict.winner - 1].map((id) => byId.get(id)?.name).join(" & ")}
+                    {lineup[verdict.winner - 1].map((id) => who(id).name).join(" & ")}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -351,8 +370,23 @@ export function Scorer({
                     </div>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={ranked}
+                  onClick={() => setRanked((r) => !r)}
+                  className="flex w-full max-w-xs items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-left transition hover:bg-white/15"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold">Masuk leaderboard</span>
+                    <span className="block text-xs text-white/55">{ranked ? "Hasil dihitung ke ranking & winrate" : "Hanya disimpan di riwayat (fun match)"}</span>
+                  </span>
+                  <span className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", ranked ? "bg-accent" : "bg-white/20")}>
+                    <motion.span layout transition={springy} className={cn("absolute top-1 size-5 rounded-full bg-white shadow", ranked ? "right-1" : "left-1")} />
+                  </span>
+                </button>
                 <p className="max-w-xs text-sm text-white/60">
-                  {isAdmin ? "Kamu admin: match langsung masuk leaderboard." : "Skor akan dicek admin sebelum masuk leaderboard."}
+                  {isAdmin ? "Kamu admin: match langsung disahkan." : "Skor dan pilihan leaderboard akan dicek admin."}
                 </p>
               </div>
               <PrimaryButton disabled={pending} onClick={submit}>
@@ -372,9 +406,13 @@ export function Scorer({
                 >
                   <Image src={shuttle3d} alt="" width={130} height={140} className="float-tilt drop-shadow-[0_18px_28px_rgba(0,0,0,0.4)]" />
                 </motion.div>
-                <h2 className="font-display text-3xl font-extrabold">{result === "CONFIRMED" ? "Masuk leaderboard!" : "Skor terkirim!"}</h2>
+                <h2 className="font-display text-3xl font-extrabold">{result === "CONFIRMED" ? (ranked ? "Masuk leaderboard!" : "Match tersimpan!") : "Skor terkirim!"}</h2>
                 <p className="max-w-xs text-white/70">
-                  {result === "CONFIRMED" ? "Ranking sudah diperbarui." : "Admin akan memverifikasi skornya setelah match. Kamu dapat notifikasi saat disahkan."}
+                  {result === "CONFIRMED"
+                    ? ranked
+                      ? "Ranking sudah diperbarui."
+                      : "Disimpan di riwayat, tidak dihitung ke ranking."
+                    : "Admin akan memverifikasi skornya setelah match. Kamu dapat notifikasi saat disahkan."}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -394,6 +432,7 @@ export function Scorer({
         {picking && (
           <PlayerPicker
             members={members}
+            guests={guests}
             taken={new Set(teams.flat().filter(Boolean) as string[])}
             title={`${TEAM_STYLE[picking.team].name} · pemain ${picking.index + 1}`}
             onPick={assign}
@@ -733,19 +772,26 @@ function TeamPanel({
 
 function PlayerPicker({
   members,
+  guests,
   taken,
   title,
   onPick,
   onClose,
 }: {
   members: ScorerMember[];
+  guests: ScorerGuest[];
   taken: Set<string>;
   title: string;
   onPick: (id: string) => void;
   onClose: () => void;
 }) {
   const [q, setQ] = useState("");
-  const list = members.filter((m) => m.name.toLowerCase().includes(q.trim().toLowerCase()));
+  const query = q.trim().replace(/\s+/g, " ");
+  const needle = query.toLowerCase();
+  const list = members.filter((m) => m.name.toLowerCase().includes(needle));
+  const guestList = guests.filter((g) => g.name.toLowerCase().includes(needle)).slice(0, 12);
+  // Typing a name nobody has yet offers to add them as a new guest.
+  const canAddGuest = query.length >= 2 && !guests.some((g) => g.name.toLowerCase() === needle);
   return (
     <>
       <motion.button
@@ -781,8 +827,8 @@ function PlayerPicker({
               autoFocus
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Cari member"
-              aria-label="Cari member"
+              placeholder="Cari member atau ketik nama tamu"
+              aria-label="Cari member atau ketik nama tamu"
               className="h-12 w-full rounded-full bg-cream pl-11 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
           </label>
@@ -803,7 +849,36 @@ function PlayerPicker({
               </button>
             );
           })}
-          {list.length === 0 && <p className="col-span-4 py-6 text-center text-sm text-slate-500">Tidak ada member &quot;{q}&quot;</p>}
+          {list.length === 0 && <p className="col-span-4 py-3 text-center text-sm text-slate-500">Tidak ada member &quot;{q}&quot;</p>}
+          {(guestList.length > 0 || canAddGuest) && (
+            <div className="col-span-4 flex flex-col gap-2 border-t border-navy/10 pt-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-navy/45">Tamu (tidak masuk ranking)</p>
+              <div className="flex flex-wrap gap-2">
+                {canAddGuest && (
+                  <button
+                    type="button"
+                    onClick={() => onPick(`n:${query.slice(0, 60)}`)}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-full bg-accent px-3.5 text-sm font-bold text-navy"
+                  >
+                    <Plus className="size-4" /> Tambah tamu &quot;{query}&quot;
+                  </button>
+                )}
+                {guestList.map((g) => {
+                  const key = `g:${g.id}`;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => onPick(key)}
+                      className={cn("inline-flex h-10 items-center gap-1.5 rounded-full bg-cream px-3.5 text-sm font-semibold text-navy", taken.has(key) && "opacity-40")}
+                    >
+                      <UserRound className="size-4 text-navy/50" /> {g.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </motion.div>
     </>

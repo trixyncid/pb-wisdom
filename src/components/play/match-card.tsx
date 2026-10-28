@@ -7,7 +7,8 @@ import { formatClub } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-export type MatchCardPlayer = { id: string; name: string; avatar: string; team: number; won: boolean | null };
+/** `memberId` is null for a guest: shown by name, no profile link. */
+export type MatchCardPlayer = { id: string; memberId: string | null; name: string; avatar: string; team: number; won: boolean | null };
 
 /** One match: both teams with avatars, per-game scores, winner highlighted. */
 export function MatchCard({
@@ -17,6 +18,7 @@ export function MatchCard({
   players,
   pendingBy,
   dispute,
+  unranked,
   footer,
 }: {
   type: "SINGLES" | "DOUBLES";
@@ -27,6 +29,8 @@ export function MatchCard({
   pendingBy?: string;
   /** Who reported the verified score as wrong, and why. */
   dispute?: { by: string; reason: string };
+  /** Recorded as a friendly: kept in history, left out of the leaderboard. */
+  unranked?: boolean;
   footer?: React.ReactNode;
 }) {
   const games = parseGames(score);
@@ -35,7 +39,10 @@ export function MatchCard({
   return (
     <article className={cn("flex flex-col gap-3 rounded-[26px] border bg-white/90 p-3.5 shadow-[0_10px_28px_rgba(14,44,60,0.06)]", dispute ? "border-rose-300" : pendingBy ? "border-accent/40" : "border-white")}>
       <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="rounded-full bg-sand px-2.5 py-0.5 font-bold text-navy">{type === "SINGLES" ? "Single" : "Ganda"}</span>
+        <span className="flex items-center gap-1">
+          <span className="rounded-full bg-sand px-2.5 py-0.5 font-bold text-navy">{type === "SINGLES" ? "Single" : "Ganda"}</span>
+          {unranked && <span className="rounded-full bg-slate-100 px-2.5 py-0.5 font-bold text-slate-500">Tidak masuk leaderboard</span>}
+        </span>
         {dispute ? (
           <span className="inline-flex items-center gap-1 font-semibold text-rose-600">
             <Flag className="size-3.5" /> Dilaporkan {dispute.by}
@@ -63,9 +70,15 @@ export function MatchCard({
               {team(t).map((p, i) => (
                 <Fragment key={p.id}>
                   {i > 0 && " & "}
-                  <Link href={`/members/${p.id}`} className="hover:underline">
-                    {p.name}
-                  </Link>
+                  {p.memberId ? (
+                    <Link href={`/members/${p.memberId}`} className="hover:underline">
+                      {p.name}
+                    </Link>
+                  ) : (
+                    <>
+                      {p.name} <span className="text-xs font-normal text-slate-400">(tamu)</span>
+                    </>
+                  )}
                 </Fragment>
               ))}
             </p>

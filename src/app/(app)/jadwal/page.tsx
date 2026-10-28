@@ -6,7 +6,7 @@ import type { AttendanceStatus, RsvpStatus } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { appUrl } from "@/lib/app-url";
-import { avatarUrl } from "@/lib/avatar";
+import { participant, toPerson, type Participant } from "@/lib/people";
 import { ensureUpcomingOccurrences } from "@/lib/jobs";
 import { AGENDA_KINDS, KIND_FILTERS, filterToKind, type AgendaKind, type KindFilter } from "@/lib/agenda";
 import { clubDayLabel, formatClub, hoursAgo, occurrenceStart, startOfClubTodayKey } from "@/lib/time";
@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AttendanceButtons } from "@/components/jadwal/attendance-buttons";
 import { EventActions } from "@/components/events/event-actions";
 import { JadwalRsvpGate } from "@/components/jadwal/rsvp-gate";
+import { AgendaGuests, type AgendaGuestRow } from "@/components/jadwal/agenda-guests";
 
 type Goer = { id: string; name: string; avatar: string };
 
@@ -27,6 +28,7 @@ type AgendaItem = {
   place: string;
   notes: string | null;
   goers: Goer[];
+  guests: AgendaGuestRow[];
   capacity: number | null;
   extraFee: number | null;
   href: string | null;
@@ -36,11 +38,7 @@ type AgendaItem = {
     | { type: "event"; eventId: string; mine: RsvpStatus | null };
 };
 
-const personSelect = {
-  id: true,
-  name: true,
-  profile: { select: { nickname: true, updatedAt: true } },
-} as const;
+const attendee = { id: true, userId: true, status: true, ...participant } as const;
 
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
@@ -60,10 +58,11 @@ export default async function JadwalPage({
   const kind = filterToKind(filter);
   const userId = session?.user?.id;
   const loggedIn = Boolean(userId);
+  const isAdmin = session?.user?.role === "ADMIN";
   // Events stay on the agenda until a few hours after they start.
   const eventsFrom = hoursAgo(3);
 
-  const [occurrences, events] = await Promise.all([
+  const [occurrences, events, knownGuests] = await Promise.all([
     kind && kind !== "LATIHAN"
       ? []
       : prisma.trainingOccurrence.findMany({
@@ -72,7 +71,7 @@ export default async function JadwalPage({
           take: 20,
           include: {
             session: true,
-            attendances: { select: { userId: true, status: true, user: { select: personSelect } } },
+            attendances: { select: attendee },
           },
         }),
     kind === "LATIHAN"
@@ -81,15 +80,17 @@ export default async function JadwalPage({
           where: { startsAt: { gte: eventsFrom }, ...(kind ? { type: kind } : {}) },
           orderBy: { startsAt: "asc" },
           take: 20,
-          include: { rsvps: { select: { userId: true, status: true, user: { select: personSelect } } } },
+          include: { rsvps: { select: attendee } },
         }),
+    isAdmin ? prisma.guest.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" }, take: 300 }) : [],
   ]);
 
-  const toGoer = (u: { id: string; name: string | null; profile: { nickname: string; updatedAt: Date } | null }): Goer => ({
-    id: u.id,
-    name: u.profile?.nickname ?? u.name ?? "Player",
-    avatar: avatarUrl(u.id, u.profile?.updatedAt),
-  });
+  const toGoer = (p: Participant): Goer => {
+    const { key, name, avatar } = toPerson(p);
+    return { id: key, name, avatar };
+  };
+  const toGuests = (rows: ({ id: string } & Participant)[]): AgendaGuestRow[] =>
+    rows.flatMap((r) => (r.guest ? [{ rowId: r.id, guestId: r.guest.id, name: r.guest.name }] : []));
 
   const baseUrl = appUrl();
   const items: AgendaItem[] = [
@@ -101,7 +102,8 @@ export default async function JadwalPage({
       title: o.session.title,
       place: o.session.venue,
       notes: o.session.notes,
-      goers: o.attendances.filter((a) => a.status === "GOING" || a.status === "ATTENDED").map((a) => toGoer(a.user)),
+      goers: o.attendances.filter((a) => a.status === "GOING" || a.status === "ATTENDED").map(toGoer),
+      guests: toGuests(o.attendances),
       capacity: null,
       extraFee: null,
       href: null,
@@ -116,7 +118,8 @@ export default async function JadwalPage({
       title: e.title,
       place: e.location,
       notes: e.notes,
-      goers: e.rsvps.filter((r) => r.status === "GOING").map((r) => toGoer(r.user)),
+      goers: e.rsvps.filter((r) => r.status === "GOING").map(toGoer),
+      guests: toGuests(e.rsvps),
       capacity: e.capacity,
       extraFee: e.extraFee,
       href: `/events/${e.id}`,
@@ -242,10 +245,20 @@ export default async function JadwalPage({
                       ))}
                     </div>
                   ) : null}
-                  <p className="text-sm font-semibold text-navy/70">
+                  <p className="min-w-0 flex-1 text-sm font-semibold text-navy/70">
                     {item.goers.length > 0 ? `${item.goers.length} ikut` : "Belum ada yang ikut"}
+                    {item.guests.length > 0 ? <span className="font-normal text-slate-400"> · {item.guests.length} tamu</span> : null}
                     {item.capacity ? <span className="font-normal text-slate-400"> · kuota {item.capacity}</span> : null}
                   </p>
+                  {isAdmin && (
+                    <AgendaGuests
+                      target={item.rsvp.type === "training" ? { type: "training", occurrenceId: item.rsvp.occurrenceId } : { type: "event", eventId: item.rsvp.eventId }}
+                      title={item.title}
+                      guests={item.guests}
+                      known={knownGuests}
+                      className="shrink-0"
+                    />
+                  )}
                 </div>
 
                 {loggedIn ? (

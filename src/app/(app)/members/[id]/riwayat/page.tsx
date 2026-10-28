@@ -7,7 +7,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatClub } from "@/lib/time";
 import { canReport } from "@/lib/match-report";
-import { nameOf, person, toPlayers } from "@/lib/people";
+import { nameOf, participant, person, toPlayers } from "@/lib/people";
 import { cn } from "@/lib/utils";
 import { MatchCard } from "@/components/play/match-card";
 import { ReportMatchButton } from "@/components/play/report-match-button";
@@ -45,7 +45,8 @@ export default async function MatchHistoryPage({
     players: { some: { userId: id } },
     ...(mode.type ? { type: mode.type } : {}),
   };
-  const result = (won: boolean) => prisma.match.count({ where: { ...where, status: "CONFIRMED", players: { some: { userId: id, won } } } });
+  // W/L follows the leaderboard: only ranked matches; friendlies still list below.
+  const result = (won: boolean) => prisma.match.count({ where: { ...where, status: "CONFIRMED", ranked: true, players: { some: { userId: id, won } } } });
   const [total, wins, losses, matches] = await Promise.all([
     prisma.match.count({ where }),
     result(true),
@@ -55,7 +56,7 @@ export default async function MatchHistoryPage({
       orderBy: { playedAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      include: { players: { include: { user: { select: person } } } },
+      include: { players: { include: participant } },
     }),
   ]);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -118,6 +119,7 @@ export default async function MatchHistoryPage({
                 score={m.score}
                 playedAt={m.playedAt}
                 players={toPlayers(m.players)}
+                unranked={!m.ranked}
                 dispute={m.status === "DISPUTED" && m.disputeReason ? { by: m.disputedById === me ? "kamu" : "pemain", reason: m.disputeReason } : undefined}
                 footer={canReport(m, me) ? <ReportMatchButton matchId={m.id} /> : undefined}
               />

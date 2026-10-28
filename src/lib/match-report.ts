@@ -3,7 +3,7 @@ export const REPORT_WINDOW_DAYS = 7;
 
 /** Can `userId` report this verified match as wrong? (player, once, in time) */
 export function canReport(
-  m: { status: string; disputeReason: string | null; playedAt: Date; players: { userId?: string; user?: { id: string } }[] },
+  m: { status: string; disputeReason: string | null; playedAt: Date; players: { userId?: string | null; user?: { id: string } | null }[] },
   userId: string,
 ) {
   return (

@@ -8,7 +8,7 @@ import { avatarUrl } from "@/lib/avatar";
 import { getLeaderboard, getMemberWinrate } from "@/lib/stats";
 import { formatClub } from "@/lib/time";
 import { formatPhone } from "@/lib/phone";
-import { person, SKILL_TONE, skillLabel, toPlayers, waLink } from "@/lib/people";
+import { participant, SKILL_TONE, skillLabel, toPlayers, waLink } from "@/lib/people";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MatchCard } from "@/components/play/match-card";
@@ -41,7 +41,7 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
       where: { status: "CONFIRMED", players: { some: { userId: id } } },
       orderBy: { playedAt: "desc" },
       take: 8,
-      include: { players: { include: { user: { select: person } } } },
+      include: { players: { include: participant } },
     }),
   ]);
 
@@ -173,6 +173,7 @@ export default async function MemberPage({ params }: { params: Promise<{ id: str
                 score={m.score}
                 playedAt={m.playedAt}
                 players={toPlayers(m.players)}
+                unranked={!m.ranked}
                 footer={canReport(m, session.user.id) ? <ReportMatchButton matchId={m.id} /> : undefined}
               />
             </div>

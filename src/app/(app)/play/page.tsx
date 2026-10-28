@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScoreLauncher } from "@/components/play/score-launcher";
 import { MatchCard } from "@/components/play/match-card";
-import { nameOf, person, toPlayers } from "@/lib/people";
+import { nameOf, participant, participantName, person, toPlayers } from "@/lib/people";
 import { ReviewMatchButtons } from "@/components/play/review-match-buttons";
 import { ReportMatchButton } from "@/components/play/report-match-button";
 import { canReport } from "@/lib/match-report";
@@ -29,7 +29,7 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
   const { mode: modeParam } = await searchParams;
   const mode = MODES.find((m) => m.key === modeParam) ?? MODES[0];
 
-  const [leaderboard, overall, myStats, members, pending, recent] = await Promise.all([
+  const [leaderboard, overall, myStats, members, guests, pending, recent] = await Promise.all([
     getLeaderboard(mode.filter, 30),
     mode.filter === "ALL" ? null : getLeaderboard("ALL", 50),
     getMemberWinrate(me),
@@ -38,17 +38,18 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
       select: person,
       orderBy: { profile: { nickname: "asc" } },
     }),
+    prisma.guest.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" }, take: 300 }),
     prisma.match.findMany({
       where: { status: { in: ["PENDING", "DISPUTED"] } },
       orderBy: { createdAt: "desc" },
       take: 20,
-      include: { players: { include: { user: { select: person } } }, loggedBy: { select: person } },
+      include: { players: { include: participant }, loggedBy: { select: person } },
     }),
     prisma.match.findMany({
       where: { status: "CONFIRMED" },
       orderBy: { playedAt: "desc" },
       take: 10,
-      include: { players: { include: { user: { select: person } } } },
+      include: { players: { include: participant } },
     }),
   ]);
 
@@ -61,7 +62,7 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
   const disputeOf = (m: (typeof pending)[number]) => {
     if (m.status !== "DISPUTED" || !m.disputeReason) return undefined;
     const by = m.players.find((p) => p.userId === m.disputedById);
-    return { by: m.disputedById === me ? "kamu" : by ? nameOf(by.user) : "pemain", reason: m.disputeReason };
+    return { by: m.disputedById === me ? "kamu" : by ? participantName(by) : "pemain", reason: m.disputeReason };
   };
 
   return (
@@ -144,6 +145,7 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
 
       <ScoreLauncher
         members={members.map((m) => ({ id: m.id, name: nameOf(m), avatar: avatarUrl(m.id, m.profile?.updatedAt) }))}
+        guests={guests}
         currentUserId={me}
         isAdmin={isAdmin}
       />
@@ -161,9 +163,10 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
                 score={m.score}
                 playedAt={m.playedAt}
                 players={toPlayers(m.players)}
+                unranked={!m.ranked}
                 pendingBy={m.loggedById === me ? "kamu" : nameOf(m.loggedBy)}
                 dispute={disputeOf(m)}
-                footer={isAdmin ? <ReviewMatchButtons matchId={m.id} disputed={m.status === "DISPUTED"} /> : undefined}
+                footer={isAdmin ? <ReviewMatchButtons matchId={m.id} ranked={m.ranked} disputed={m.status === "DISPUTED"} /> : undefined}
               />
             </div>
           ))}
@@ -236,6 +239,7 @@ export default async function PlayPage({ searchParams }: { searchParams: Promise
               score={m.score}
               playedAt={m.playedAt}
               players={toPlayers(m.players)}
+              unranked={!m.ranked}
               footer={canReport(m, me) ? <ReportMatchButton matchId={m.id} /> : undefined}
             />
           ))}

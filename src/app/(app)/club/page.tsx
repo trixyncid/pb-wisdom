@@ -4,7 +4,7 @@ import { CalendarDays, ChevronRight, Mail, PartyPopper, Receipt, Swords, UserChe
 import { requireAdminPage } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatClub, hoursAgo } from "@/lib/time";
-import { nameOf, person, toPlayers } from "@/lib/people";
+import { nameOf, participant, participantName, person, toPlayers } from "@/lib/people";
 import { formatRp, cn } from "@/lib/utils";
 import { AdminHeader } from "@/components/club/admin-header";
 import { InvitePanel } from "@/components/club/invite-panel";
@@ -37,7 +37,7 @@ export default async function ClubPage() {
       where: { status: { in: ["PENDING", "DISPUTED"] } },
       orderBy: { createdAt: "asc" },
       take: 10,
-      include: { players: { include: { user: { select: person } } }, loggedBy: { select: person } },
+      include: { players: { include: participant }, loggedBy: { select: person } },
     }),
     prisma.announcement.findMany({
       orderBy: { createdAt: "desc" },
@@ -123,9 +123,10 @@ export default async function ClubPage() {
               score={m.score}
               playedAt={m.playedAt}
               players={toPlayers(m.players)}
+              unranked={!m.ranked}
               pendingBy={nameOf(m.loggedBy)}
-              dispute={m.status === "DISPUTED" && m.disputeReason ? { by: reporter ? nameOf(reporter.user) : "pemain", reason: m.disputeReason } : undefined}
-              footer={<ReviewMatchButtons matchId={m.id} disputed={m.status === "DISPUTED"} />}
+              dispute={m.status === "DISPUTED" && m.disputeReason ? { by: reporter ? participantName(reporter) : "pemain", reason: m.disputeReason } : undefined}
+              footer={<ReviewMatchButtons matchId={m.id} ranked={m.ranked} disputed={m.status === "DISPUTED"} />}
             />
           );
         })}

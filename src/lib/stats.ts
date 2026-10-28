@@ -41,7 +41,7 @@ export async function getLeaderboard(
              ROW_NUMBER() OVER (PARTITION BY mp."userId" ORDER BY m."playedAt" DESC) AS rn
       FROM "MatchPlayer" mp
       JOIN "Match" m ON m."id" = mp."matchId"
-      WHERE m."status" = 'CONFIRMED' AND mp."won" IS NOT NULL ${typeFilter}
+      WHERE m."status" = 'CONFIRMED' AND m."ranked" AND mp."userId" IS NOT NULL AND mp."won" IS NOT NULL ${typeFilter}
     )
     SELECT "userId",
            (COUNT(*) FILTER (WHERE "won"))::int     AS wins,
@@ -92,6 +92,7 @@ async function getLeaderboardInMemory(
   const matches = await prisma.match.findMany({
     where: {
       status: MatchStatus.CONFIRMED,
+      ranked: true,
       ...(filter === "ALL" ? {} : { type: filter as MatchType }),
     },
     orderBy: { playedAt: "desc" },
@@ -101,11 +102,14 @@ async function getLeaderboardInMemory(
   const stats = new Map<string, Omit<LeaderboardRow, "played" | "winrate">>();
   for (const match of matches) {
     for (const player of match.players) {
-      const existing = stats.get(player.userId) ?? {
-        userId: player.userId,
-        name: player.user.name ?? player.user.profile?.nickname ?? "Player",
-        nickname: player.user.profile?.nickname ?? "Player",
-        imageUrl: avatarUrl(player.userId),
+      // Guests have no ranking; their opponents' results still count.
+      const { userId, user } = player;
+      if (!userId || !user) continue;
+      const existing = stats.get(userId) ?? {
+        userId,
+        name: user.name ?? user.profile?.nickname ?? "Player",
+        nickname: user.profile?.nickname ?? "Player",
+        imageUrl: avatarUrl(userId),
         wins: 0,
         losses: 0,
         form: [],
@@ -117,7 +121,7 @@ async function getLeaderboardInMemory(
         existing.losses += 1;
         if (existing.form.length < 5) existing.form.push("L");
       }
-      stats.set(player.userId, existing);
+      stats.set(userId, existing);
     }
   }
 
@@ -133,7 +137,7 @@ async function getLeaderboardInMemory(
 
 export async function getMemberWinrate(userId: string) {
   const players = await prisma.matchPlayer.findMany({
-    where: { userId, match: { status: MatchStatus.CONFIRMED } },
+    where: { userId, match: { status: MatchStatus.CONFIRMED, ranked: true } },
     include: { match: { select: { type: true } } },
   });
 

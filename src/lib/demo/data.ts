@@ -456,6 +456,7 @@ const matchPlayers = matches.flatMap((m) =>
   m.players.map((p) => ({
     ...p,
     matchId: m.id,
+    guestId: null,
     createdAt: now,
     updatedAt: now,
   })),
@@ -464,6 +465,7 @@ const matchPlayers = matches.flatMap((m) =>
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- drop players from the row
 const matchRows = matches.map(({ players: _players, ...m }) => ({
   ...m,
+  ranked: true,
   createdAt: now,
   updatedAt: now,
 }));
@@ -555,6 +557,7 @@ export const demoStore = {
   announcement: announcements,
   notification: notifications,
   invite: invites,
+  guest: [] as { id: string; name: string; createdById: string | null; createdAt: Date }[],
 };
 
 export type DemoModel = keyof typeof demoStore;

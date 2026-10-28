@@ -115,14 +115,14 @@ export async function updateEventAction(eventId: string, input: z.input<typeof e
       const moved = Math.floor(before.startsAt.getTime() / 60_000) !== Math.floor(startsAt.getTime() / 60_000);
       const relocated = before.location !== data.location;
       if (moved || relocated) {
-        const attendees = await tx.eventRsvp.findMany({ where: { eventId, status: { in: ["GOING", "WAITLIST"] } }, select: { userId: true } });
+        const attendees = await tx.eventRsvp.findMany({ where: { eventId, status: { in: ["GOING", "WAITLIST"] }, userId: { not: null } }, select: { userId: true } });
         const what = [
           moved && formatClub(startsAt, "EEEE d MMM, HH:mm", { locale: localeId }),
           relocated && data.location,
         ].filter(Boolean).join(" · ");
         await tx.notification.createMany({
-          data: attendees.map((a) => ({
-            userId: a.userId,
+          data: attendees.flatMap((a) => (a.userId ? [a.userId] : [])).map((userId) => ({
+            userId,
             type: "EVENT" as const,
             title: `${data.title} berubah`,
             body: `Jadwal baru: ${what}`,
@@ -143,8 +143,8 @@ export async function updateEventAction(eventId: string, input: z.input<typeof e
         if (promoted.length) {
           await tx.eventRsvp.updateMany({ where: { id: { in: promoted.map((p) => p.id) } }, data: { status: "GOING" } });
           await tx.notification.createMany({
-            data: promoted.map((p) => ({
-              userId: p.userId,
+            data: promoted.flatMap((p) => (p.userId ? [p.userId] : [])).map((userId) => ({
+              userId,
               type: "EVENT" as const,
               title: `Kamu dapat tempat di ${data.title}`,
               body: "Kuota ditambah, RSVP-mu sekarang GOING.",
@@ -210,7 +210,7 @@ export async function setEventRsvpAction(eventId: string, status: RsvpStatus) {
         });
         if (next) {
           await tx.eventRsvp.update({ where: { id: next.id }, data: { status: "GOING" } });
-          await tx.notification.create({
+          if (next.userId) await tx.notification.create({
             data: {
               userId: next.userId,
               type: "EVENT",
@@ -327,11 +327,12 @@ export async function setEventFeePaidAction(rsvpId: string, paid: boolean) {
 
     const rsvp = await prisma.eventRsvp.findUnique({
       where: { id: rsvpId },
-      select: { userId: true, paidAt: true, event: { select: { id: true, title: true, extraFee: true } } },
+      select: { userId: true, guest: { select: { name: true } }, paidAt: true, event: { select: { id: true, title: true, extraFee: true } } },
     });
     if (!rsvp) throw new ActionError("Peserta tidak ditemukan");
     if (!rsvp.event.extraFee) throw new ActionError("Event ini tidak berbayar");
     if (Boolean(rsvp.paidAt) === paid) return {};
+    const who = rsvp.userId ? await memberName(rsvp.userId) : `${rsvp.guest?.name ?? "tamu"} (tamu)`;
 
     await prisma.$transaction([
       prisma.eventRsvp.update({ where: { id: rsvpId }, data: { paidAt: paid ? new Date() : null } }),
@@ -339,10 +340,10 @@ export async function setEventFeePaidAction(rsvpId: string, paid: boolean) {
         prisma,
         session.user.id,
         "AGENDA",
-        `${paid ? "Mencatat" : "Membatalkan"} pembayaran ${await memberName(rsvp.userId)} untuk "${rsvp.event.title}"`,
+        `${paid ? "Mencatat" : "Membatalkan"} pembayaran ${who} untuk "${rsvp.event.title}"`,
         `/events/${rsvp.event.id}`,
       ),
-      ...(paid
+      ...(paid && rsvp.userId
         ? [
             prisma.notification.create({
               data: {

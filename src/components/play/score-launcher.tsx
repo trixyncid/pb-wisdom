@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { AnimatePresence } from "motion/react";
 import { Plus } from "lucide-react";
-import type { ScorerMember } from "@/components/play/scorer";
+import type { ScorerGuest, ScorerMember } from "@/components/play/scorer";
 import shuttle3d from "@/assets/3d/shuttle.png";
 
 // The scorer is only downloaded when someone opens it (and starts loading as
@@ -15,10 +15,12 @@ const Scorer = dynamic(() => loadScorer().then((m) => m.Scorer), { ssr: false })
 
 export function ScoreLauncher({
   members,
+  guests,
   currentUserId,
   isAdmin,
 }: {
   members: ScorerMember[];
+  guests: ScorerGuest[];
   currentUserId: string;
   isAdmin: boolean;
 }) {
@@ -48,7 +50,7 @@ export function ScoreLauncher({
         <Image src={shuttle3d} alt="" width={84} height={90} className="float-tilt prop-shadow pointer-events-none relative -my-4 -mr-2 w-[76px] shrink-0" />
       </button>
       <AnimatePresence>
-        {open && <Scorer members={members} currentUserId={currentUserId} isAdmin={isAdmin} onClose={() => setOpen(false)} />}
+        {open && <Scorer members={members} guests={guests} currentUserId={currentUserId} isAdmin={isAdmin} onClose={() => setOpen(false)} />}
       </AnimatePresence>
     </>
   );

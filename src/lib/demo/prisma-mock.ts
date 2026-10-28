@@ -38,6 +38,7 @@ const RELATIONS: Record<
       many: false,
     },
     user: { model: "user", local: "userId", foreign: "id", many: false },
+    guest: { model: "guest", local: "guestId", foreign: "id", many: false },
   },
   feePeriod: {
     dues: { model: "feeDue", local: "id", foreign: "periodId", many: true },
@@ -53,6 +54,7 @@ const RELATIONS: Record<
   eventRsvp: {
     event: { model: "event", local: "eventId", foreign: "id", many: false },
     user: { model: "user", local: "userId", foreign: "id", many: false },
+    guest: { model: "guest", local: "guestId", foreign: "id", many: false },
   },
   eventPhoto: {
     event: { model: "event", local: "eventId", foreign: "id", many: false },
@@ -64,10 +66,12 @@ const RELATIONS: Record<
   matchPlayer: {
     match: { model: "match", local: "matchId", foreign: "id", many: false },
     user: { model: "user", local: "userId", foreign: "id", many: false },
+    guest: { model: "guest", local: "guestId", foreign: "id", many: false },
   },
   announcement: {},
   notification: {},
   invite: {},
+  guest: {},
 };
 
 function getValue(obj: Dict, path: string): unknown {
@@ -357,6 +361,7 @@ export function createDemoPrisma() {
     announcement: delegate("announcement"),
     notification: delegate("notification"),
     invite: delegate("invite"),
+    guest: delegate("guest"),
     $connect: async () => {},
     $disconnect: async () => {},
     $transaction: async (fn: any) =>

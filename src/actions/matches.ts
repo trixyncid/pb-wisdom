@@ -9,13 +9,22 @@ import { demoActionResult } from "@/lib/demo/guard";
 import { formatGames, matchResult, type GameScore } from "@/lib/badminton";
 import { REPORT_WINDOW_DAYS } from "@/lib/match-report";
 import { logAdmin } from "@/lib/admin-log";
+import { participant, participantName } from "@/lib/people";
+import { existingGuest, guestByName } from "@/lib/guests";
 
-const playerId = z.string().min(1, "Pilih semua pemain");
+// A member, a guest picked from earlier matches, or a new guest by name.
+const playerSlot = z.union([
+  z.object({ userId: z.string().min(1, "Pilih semua pemain") }),
+  z.object({ guestId: z.string().min(1, "Pilih semua pemain") }),
+  z.object({ guestName: z.string().trim().min(2, "Nama tamu minimal 2 huruf").max(60, "Nama tamu terlalu panjang") }),
+]);
+export type PlayerSlot = z.input<typeof playerSlot>;
 
 const matchSchema = z.object({
   type: z.enum(["SINGLES", "DOUBLES"]),
-  team1Ids: z.array(playerId).min(1).max(2),
-  team2Ids: z.array(playerId).min(1).max(2),
+  team1: z.array(playerSlot).min(1).max(2),
+  team2: z.array(playerSlot).min(1).max(2),
+  ranked: z.boolean().default(true),
   // Per game, team 1 first: [[21, 19], [18, 21], [21, 15]].
   games: z.array(z.tuple([z.number().int(), z.number().int()])).min(1).max(3),
   eventId: z.string().optional(),
@@ -42,38 +51,47 @@ export async function logMatchAction(input: z.input<typeof matchSchema>) {
     const isAdmin = session.user.role === "ADMIN";
 
     const size = data.type === "SINGLES" ? 1 : 2;
-    if (data.team1Ids.length !== size || data.team2Ids.length !== size) {
+    if (data.team1.length !== size || data.team2.length !== size) {
       throw new ActionError(data.type === "SINGLES" ? "Single harus 1 lawan 1" : "Ganda harus 2 lawan 2");
     }
-    const allIds = [...data.team1Ids, ...data.team2Ids];
-    if (new Set(allIds).size !== allIds.length) throw new ActionError("Pemain tidak boleh dobel");
+    const slots = [...data.team1.map((p) => ({ ...p, team: 1 })), ...data.team2.map((p) => ({ ...p, team: 2 }))];
+    const keys = slots.map((p) => ("userId" in p ? `u:${p.userId}` : "guestId" in p ? `g:${p.guestId}` : `n:${p.guestName.toLowerCase()}`));
+    if (new Set(keys).size !== keys.length) throw new ActionError("Pemain tidak boleh dobel");
+    const memberIds = slots.flatMap((p) => ("userId" in p ? [p.userId] : []));
+    if (memberIds.length === 0) throw new ActionError("Minimal satu pemain harus member");
 
     const games = data.games as GameScore[];
     const result = matchResult(games);
     if ("error" in result) throw new ActionError(result.error);
 
     const approvedPlayers = await prisma.user.count({
-      where: { id: { in: allIds }, role: { in: ["MEMBER", "ADMIN"] } },
+      where: { id: { in: memberIds }, role: { in: ["MEMBER", "ADMIN"] } },
     });
-    if (approvedPlayers !== allIds.length) {
-      throw new ActionError("Semua pemain harus member yang sudah disetujui");
+    if (approvedPlayers !== memberIds.length) {
+      throw new ActionError("Pemain member harus yang sudah disetujui");
     }
 
     const match = await prisma.$transaction(async (tx) => {
+      const players = [];
+      for (const slot of slots) {
+        const base = { team: slot.team, won: result.winner === slot.team, confirmed: isAdmin };
+        if ("userId" in slot) players.push({ ...base, userId: slot.userId });
+        else players.push({ ...base, guestId: "guestId" in slot ? await existingGuest(tx, slot.guestId) : await guestByName(tx, slot.guestName, session.user.id) });
+      }
+      // Two new names can resolve to the same saved guest.
+      const guestIds = players.flatMap((p) => ("guestId" in p ? [p.guestId] : []));
+      if (new Set(guestIds).size !== guestIds.length) throw new ActionError("Pemain tidak boleh dobel");
+
       const created = await tx.match.create({
         data: {
           type: data.type,
           score: formatGames(games),
+          ranked: data.ranked,
           eventId: data.eventId || null,
           notes: data.notes,
           loggedById: session.user.id,
           status: isAdmin ? "CONFIRMED" : "PENDING",
-          players: {
-            create: allIds.map((userId) => {
-              const team = data.team1Ids.includes(userId) ? 1 : 2;
-              return { userId, team, won: result.winner === team, confirmed: isAdmin };
-            }),
-          },
+          players: { create: players },
         },
         select: { id: true },
       });
@@ -86,7 +104,7 @@ export async function logMatchAction(input: z.input<typeof matchSchema>) {
               userId: a.id,
               type: "MATCH" as const,
               title: "Skor baru menunggu verifikasi",
-              body: `${data.type === "SINGLES" ? "Single" : "Ganda"} · ${formatGames(games)}`,
+              body: `${data.type === "SINGLES" ? "Single" : "Ganda"} · ${formatGames(games)}${data.ranked ? "" : " · tidak masuk leaderboard"}`,
               href: "/play",
             })),
           });
@@ -156,7 +174,7 @@ export async function reportMatchAction(matchId: string, reason: string) {
  * Admin verdict on a recorded match: count it, or reject (delete) it. For a
  * reported match, APPROVE keeps the score as it was.
  */
-export async function reviewMatchAction(matchId: string, decision: "APPROVE" | "REJECT") {
+export async function reviewMatchAction(matchId: string, decision: "APPROVE" | "REJECT", ranked?: boolean) {
   return runAction(async () => {
     const __demo = demoActionResult();
     if (__demo) return __demo;
@@ -174,10 +192,11 @@ export async function reviewMatchAction(matchId: string, decision: "APPROVE" | "
 
       const players = await tx.matchPlayer.findMany({
         where: { matchId },
-        select: { userId: true, team: true, user: { select: { name: true, profile: { select: { nickname: true } } } } },
+        select: { userId: true, team: true, ...participant },
       });
+      const notify = players.flatMap((p) => (p.userId ? [p.userId] : []));
       const disputed = match.status === "DISPUTED";
-      const side = (t: number) => players.filter((p) => p.team === t).map((p) => p.user.profile?.nickname ?? p.user.name ?? "?").join(" & ");
+      const side = (t: number) => players.filter((p) => p.team === t).map(participantName).join(" & ");
       const label = `${side(1)} vs ${side(2)} (${match.score})`;
       await logAdmin(
         tx,
@@ -200,8 +219,8 @@ export async function reviewMatchAction(matchId: string, decision: "APPROVE" | "
           await tx.match.delete({ where: { id: matchId } });
         }
         await tx.notification.createMany({
-          data: players.map((p) => ({
-            userId: p.userId,
+          data: notify.map((userId) => ({
+            userId,
             type: "MATCH" as const,
             title: decision === "APPROVE" ? "Laporan skor dicek: skor tetap" : "Match yang dilaporkan dihapus",
             body:
@@ -213,13 +232,18 @@ export async function reviewMatchAction(matchId: string, decision: "APPROVE" | "
         });
       } else if (decision === "APPROVE") {
         await tx.matchPlayer.updateMany({ where: { matchId }, data: { confirmed: true } });
-        await tx.match.update({ where: { id: matchId }, data: { status: "CONFIRMED" } });
+        // The admin may flip the recorder's leaderboard choice while approving.
+        const counted = await tx.match.update({
+          where: { id: matchId },
+          data: { status: "CONFIRMED", ...(typeof ranked === "boolean" ? { ranked } : {}) },
+          select: { ranked: true },
+        });
         await tx.notification.createMany({
-          data: players.map((p) => ({
-            userId: p.userId,
+          data: notify.map((userId) => ({
+            userId,
             type: "MATCH" as const,
             title: "Hasil match disahkan",
-            body: `Skor ${match.score} masuk leaderboard.`,
+            body: counted.ranked ? `Skor ${match.score} masuk leaderboard.` : `Skor ${match.score} disimpan di riwayat (tidak masuk leaderboard).`,
             href: "/play",
           })),
         });
