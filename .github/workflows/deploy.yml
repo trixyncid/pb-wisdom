@@ -44,6 +44,8 @@ jobs:
           bun-version: 1.3.9
       - run: bun install --frozen-lockfile
       - run: bun run lint
+      # next-env.d.ts (image + route types) is gitignored; generate it first.
+      - run: bunx next typegen
       - run: bunx tsc --noEmit
       - name: Migrations match schema.prisma
         run: >-
