@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Plus_Jakarta_Sans } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { DemoBanner } from "@/components/demo/demo-banner";
+import { Splash } from "@/components/splash";
 import { auth } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demo/mode";
 import "./globals.css";
@@ -49,10 +50,12 @@ export default async function RootLayout({
     session?.user?.role === "ADMIN" ? ("ADMIN" as const) : ("MEMBER" as const);
 
   return (
-    <html lang="id">
+    // The splash script sets data-splash on <html> before hydration.
+    <html lang="id" suppressHydrationWarning>
       <body
         className={`${jakarta.variable} ${bricolage.variable} antialiased`}
       >
+        <Splash />
         <Providers demo={demo}>
           {demo && <DemoBanner role={demoRole} />}
           {children}
