@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { toast } from "sonner";
 import {
   ChevronRight,
   Download,
@@ -11,11 +10,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useUiStore } from "@/lib/store";
-
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
+import { InstallGuideSheet, useInstallPrompt } from "./install-guide";
 
 const linkRows = [
   {
@@ -63,31 +58,8 @@ function RowShell({
 
 export function ProfileShortcuts() {
   const openLogout = useUiStore((s) => s.openLogout);
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(
-    null,
-  );
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  async function installApp() {
-    if (deferred) {
-      await deferred.prompt();
-      await deferred.userChoice;
-      setDeferred(null);
-      return;
-    }
-    toast.message("Install app", {
-      description:
-        "Di Chrome Android: menu ⋮ → Add to Home Screen / Install app",
-    });
-  }
+  const install = useInstallPrompt();
+  const [guideOpen, setGuideOpen] = useState(false);
 
   return (
     <div className="space-y-3">
@@ -114,7 +86,7 @@ export function ProfileShortcuts() {
         <li>
           <button
             type="button"
-            onClick={installApp}
+            onClick={() => setGuideOpen(true)}
             className="flex w-full items-center gap-3 px-4 py-3.5 transition hover:bg-cream"
           >
             <RowShell
@@ -135,6 +107,13 @@ export function ProfileShortcuts() {
         <LogOut className="h-4 w-4" />
         Keluar
       </button>
+
+      <InstallGuideSheet
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        canPrompt={install.canPrompt}
+        onPrompt={install.prompt}
+      />
     </div>
   );
 }

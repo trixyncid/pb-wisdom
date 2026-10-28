@@ -4,10 +4,10 @@ import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import type { MemberStatus, Role, SkillLevel } from "@prisma/client";
-import { Check, ChevronDown, MessageCircle, Search, Shield, ShieldOff, UserRound, UserRoundX, X } from "lucide-react";
+import { Check, ChevronDown, MessageCircle, Search, Shield, ShieldOff, Trash2, UserRound, UserRoundX, X } from "lucide-react";
 import { withToast } from "@/lib/with-toast";
 import type { ActionResult } from "@/lib/action-result";
-import { approveMemberAction, deactivateMemberAction } from "@/actions/auth";
+import { approveMemberAction, deactivateMemberAction, deleteSignupAction } from "@/actions/auth";
 import { setAdminRoleAction } from "@/actions/admin";
 import { formatPhone } from "@/lib/phone";
 import { SKILL_TONE, skillLabel, waLink } from "@/lib/people";
@@ -108,6 +108,9 @@ function MemberRow({ m, isMe, open, onToggle }: { m: ManagedMember; isMe: boolea
     });
   const wa = waLink(m.phone);
   const approved = m.role === "MEMBER" || m.role === "ADMIN";
+  const removeSignup = () =>
+    window.confirm(`Hapus data pendaftaran ${m.nickname} (${m.email})? Ini permanen; email ini bisa dipakai daftar lagi.`) &&
+    run(deleteSignupAction(m.id), "Data pendaftar dihapus");
 
   return (
     <li className={cn("overflow-hidden rounded-[24px] border bg-white/90 shadow-[0_8px_22px_rgba(14,44,60,0.05)]", m.role === "PENDING" ? "border-accent/40" : "border-white")}>
@@ -131,6 +134,15 @@ function MemberRow({ m, isMe, open, onToggle }: { m: ManagedMember; isMe: boolea
         </div>
         {m.role === "PENDING" ? (
           <div className="flex shrink-0 gap-1.5">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={removeSignup}
+              aria-label={`Hapus data ${m.nickname}`}
+              className="flex size-10 items-center justify-center rounded-full bg-cream text-navy/60 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+            >
+              <Trash2 className="size-4" />
+            </button>
             <button
               type="button"
               disabled={pending}
@@ -193,6 +205,7 @@ function MemberRow({ m, isMe, open, onToggle }: { m: ManagedMember; isMe: boolea
                 />
               )}
               {m.role === "REJECTED" && <ActionChip disabled={pending} icon={Check} label="Pulihkan sebagai member" onClick={() => run(approveMemberAction(m.id, true), `${m.nickname} dipulihkan`)} />}
+              {m.role === "REJECTED" && !m.email.endsWith("@deleted.invalid") && <ActionChip disabled={pending} icon={Trash2} label="Hapus data" danger onClick={removeSignup} />}
               {isMe && <p className="text-xs text-slate-500">Ini akunmu. Peran dan status diubah oleh admin lain.</p>}
             </div>
           </motion.div>

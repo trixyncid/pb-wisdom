@@ -218,6 +218,41 @@ export async function approveMemberAction(userId: string, approve: boolean) {
   });
 }
 
+/** Permanently removes a sign-up that was never approved (pending or rejected). */
+export async function deleteSignupAction(userId: string) {
+  return runAction(async () => {
+    const __demo = demoActionResult();
+    if (__demo) return __demo;
+    const session = await requireAdmin();
+
+    const user = await prisma.user.findFirst({
+      // Deleted accounts are anonymised as REJECTED but keep their history.
+      where: { id: userId, role: { in: ["PENDING", "REJECTED"] }, NOT: { email: { endsWith: "@deleted.invalid" } } },
+      select: { image: true, profile: { select: { imageUrl: true } } },
+    });
+    if (!user) throw new ActionError("Hanya pendaftar yang belum disetujui yang bisa dihapus");
+
+    const name = await memberName(userId);
+    try {
+      await prisma.$transaction([
+        prisma.user.delete({ where: { id: userId } }),
+        logAdmin(prisma, session.user.id, "MEMBER", `Menghapus data pendaftar ${name}`),
+      ]);
+    } catch (err) {
+      // Still referenced somewhere (e.g. a restored-then-rejected member's matches).
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+        throw new ActionError("Akun ini punya riwayat di klub, tidak bisa dihapus");
+      }
+      throw err;
+    }
+    deleteStoredImages([user.image, user.profile?.imageUrl]);
+
+    revalidatePath("/club");
+    revalidatePath("/club/members");
+    return {};
+  });
+}
+
 export async function deactivateMemberAction(userId: string, active: boolean) {
   return runAction(async () => {
     const __demo = demoActionResult();
