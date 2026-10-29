@@ -239,7 +239,7 @@ export const EMAIL_SAMPLES: EmailSample[] = [
     group: "Match",
     type: "MATCH",
     title: "Skor baru menunggu verifikasi",
-    body: "Ganda · 21-15, 19-21, 21-18",
+    body: "Ganda · 30-26",
     href: "/play",
   },
   {
@@ -247,7 +247,7 @@ export const EMAIL_SAMPLES: EmailSample[] = [
     group: "Match",
     type: "MATCH",
     title: "Skor match dilaporkan salah",
-    body: '21-15, 19-21, 21-18 · "Skor game terakhir salah"',
+    body: '30-26 · "Skor tim kami harusnya 30"',
     href: "/play",
   },
   {
@@ -255,7 +255,7 @@ export const EMAIL_SAMPLES: EmailSample[] = [
     group: "Match",
     type: "MATCH",
     title: "Laporan skor dicek: skor tetap",
-    body: "Admin menyatakan skor 21-15, 19-21, 21-18 sudah benar.",
+    body: "Admin menyatakan skor 30-26 sudah benar.",
     href: "/play",
   },
   {
@@ -263,7 +263,7 @@ export const EMAIL_SAMPLES: EmailSample[] = [
     group: "Match",
     type: "MATCH",
     title: "Match yang dilaporkan dihapus",
-    body: "Skor 21-15, 19-21, 21-18 dihapus. Catat ulang dengan skor yang benar.",
+    body: "Skor 30-26 dihapus. Catat ulang dengan skor yang benar.",
     href: "/play",
   },
   {
@@ -271,7 +271,7 @@ export const EMAIL_SAMPLES: EmailSample[] = [
     group: "Match",
     type: "MATCH",
     title: "Hasil match disahkan",
-    body: "Skor 21-15, 19-21, 21-18 masuk leaderboard.",
+    body: "Skor 30-26 masuk leaderboard.",
     href: "/play",
   },
   {
@@ -279,7 +279,7 @@ export const EMAIL_SAMPLES: EmailSample[] = [
     group: "Match",
     type: "MATCH",
     title: "Skor match ditolak admin",
-    body: "Skor 21-15, 19-21, 21-18 tidak disahkan. Cek lagi dan catat ulang bila perlu.",
+    body: "Skor 30-26 tidak disahkan. Cek lagi dan catat ulang bila perlu.",
     href: "/play",
   },
   {

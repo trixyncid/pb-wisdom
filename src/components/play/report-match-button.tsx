@@ -41,7 +41,7 @@ export function ReportMatchButton({ matchId }: { matchId: string }) {
         maxLength={300}
         required
         minLength={5}
-        placeholder="Contoh: game 2 harusnya 21-18 untuk tim kami"
+        placeholder="Contoh: skornya harusnya 30-27 untuk tim kami"
         className="w-full resize-none rounded-xl border border-navy/10 bg-white px-3 py-2 text-sm text-navy outline-none focus:ring-2 focus:ring-accent"
       />
       <p className="text-xs text-slate-500">

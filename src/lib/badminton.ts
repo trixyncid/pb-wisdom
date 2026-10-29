@@ -1,12 +1,14 @@
-// Badminton scoring (BWF rally point), shared by the scorer UI and the server
-// so both agree on what a valid result is.
-//   A game is won at 21 with a 2-point lead; at 29-29 the next point (30) wins.
-//   A match is one game, or best of three (2-0 / 2-1).
+// Badminton scoring (rally point, one game to 30), shared by the scorer UI and
+// the server so both agree on what a valid result is.
+//   The game is won at 30 with a 2-point lead; at 39-39 the next point (40) wins.
+//   A match is best of N games (N odd: 1, 3, 5, ...). Older matches stored in
+//   the 21-point format stay as they are; only new results are checked.
 
 export type GameScore = [number, number]; // [team 1, team 2]
 
-export const POINTS_TO_WIN = 21;
-export const POINT_CAP = 30;
+export const POINTS_TO_WIN = 30;
+export const POINT_CAP = 40;
+export const MAX_BEST_OF = 9;
 
 /** 1 or 2 when that team has won the game, otherwise null (still running). */
 export function gameWinner([a, b]: GameScore): 1 | 2 | null {
@@ -17,7 +19,7 @@ export function gameWinner([a, b]: GameScore): 1 | 2 | null {
   return null;
 }
 
-/** A finished game that could really happen (e.g. 21-19, 22-20, 30-29; not 25-10). */
+/** A finished game that could really happen (e.g. 30-27, 32-30, 40-39; not 35-20). */
 export function isValidFinishedGame([a, b]: GameScore) {
   const w = Math.max(a, b);
   const l = Math.min(a, b);
@@ -32,26 +34,30 @@ export function canScore([a, b]: GameScore, team: 1 | 2) {
   return gameWinner([a, b]) === null && (team === 1 ? a : b) < POINT_CAP;
 }
 
+/** Games a team needs to take the match, e.g. 2 in a best of 3. */
+export const gamesToWin = (bestOf: number) => Math.floor(bestOf / 2) + 1;
+
 /**
- * Match winner for a list of finished games, or an error message. One game,
- * 2-0 or 2-1; no game may be played after a team already has two.
+ * Match winner for a list of finished games played as best of `bestOf`, or an
+ * error message. No game may be played after a team already has enough.
  */
-export function matchResult(games: GameScore[]): { winner: 1 | 2 } | { error: string } {
-  if (games.length < 1 || games.length > 3) return { error: "Isi 1 sampai 3 game" };
+export function matchResult(games: GameScore[], bestOf: number): { winner: 1 | 2 } | { error: string } {
+  if (!Number.isInteger(bestOf) || bestOf < 1 || bestOf > MAX_BEST_OF || bestOf % 2 === 0) return { error: "Format match tidak valid" };
+  const need = gamesToWin(bestOf);
+  if (games.length < need || games.length > bestOf) return { error: bestOf === 1 ? "Isi 1 game" : `Isi ${need} sampai ${bestOf} game` };
   let t1 = 0;
   let t2 = 0;
   for (const g of games) {
-    if (t1 === 2 || t2 === 2) return { error: "Match sudah selesai sebelum game terakhir" };
-    if (!isValidFinishedGame(g)) return { error: `Skor ${g[0]}-${g[1]} tidak sesuai aturan badminton` };
+    if (t1 === need || t2 === need) return { error: "Match sudah selesai sebelum game terakhir" };
+    if (!isValidFinishedGame(g)) return { error: `Skor ${g[0]}-${g[1]} tidak sesuai aturan (game ${POINTS_TO_WIN} poin)` };
     if (gameWinner(g) === 1) t1 += 1;
     else t2 += 1;
   }
-  if (games.length === 2 && t1 === 1) return { error: "Skor 1-1: perlu game ketiga" };
-  if (games.length === 3 && Math.max(t1, t2) !== 2) return { error: "Game ketiga tidak diperlukan" };
+  if (Math.max(t1, t2) !== need) return { error: `Belum ada tim yang menang ${need} game` };
   return { winner: t1 > t2 ? 1 : 2 };
 }
 
-/** "21-19, 18-21, 21-15" <-> [[21,19],[18,21],[21,15]] (team 1 first). */
+/** "30-27, 28-30, 30-25" <-> [[30,27],[28,30],[30,25]] (team 1 first). */
 export function formatGames(games: GameScore[]) {
   return games.map(([a, b]) => `${a}-${b}`).join(", ");
 }

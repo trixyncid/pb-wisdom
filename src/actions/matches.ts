@@ -6,7 +6,7 @@ import { requireAdmin, requireMember } from "@/lib/authz";
 import { ActionError, runAction } from "@/lib/action-result";
 import { prisma } from "@/lib/db";
 import { demoActionResult } from "@/lib/demo/guard";
-import { formatGames, matchResult, type GameScore } from "@/lib/badminton";
+import { formatGames, matchResult, MAX_BEST_OF, type GameScore } from "@/lib/badminton";
 import { REPORT_WINDOW_DAYS } from "@/lib/match-report";
 import { logAdmin } from "@/lib/admin-log";
 import { participant, participantName } from "@/lib/people";
@@ -25,8 +25,10 @@ const matchSchema = z.object({
   team1: z.array(playerSlot).min(1).max(2),
   team2: z.array(playerSlot).min(1).max(2),
   ranked: z.boolean().default(true),
-  // Per game, team 1 first: [[21, 19], [18, 21], [21, 15]].
-  games: z.array(z.tuple([z.number().int(), z.number().int()])).min(1).max(3),
+  // Best of N games (N odd), each to 30.
+  bestOf: z.number().int().default(1),
+  // Per game, team 1 first: [[30, 27], [28, 30], [30, 25]].
+  games: z.array(z.tuple([z.number().int(), z.number().int()])).min(1).max(MAX_BEST_OF),
   eventId: z.string().optional(),
   notes: z.string().max(500).optional(),
 });
@@ -61,7 +63,7 @@ export async function logMatchAction(input: z.input<typeof matchSchema>) {
     if (memberIds.length === 0) throw new ActionError("Minimal satu pemain harus member");
 
     const games = data.games as GameScore[];
-    const result = matchResult(games);
+    const result = matchResult(games, data.bestOf);
     if ("error" in result) throw new ActionError(result.error);
 
     const approvedPlayers = await prisma.user.count({

@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, Check, Minus, Plus, Search, Trophy, UserPlus, UserRound, X } from "lucide-react";
 import { logMatchAction, type PlayerSlot } from "@/actions/matches";
 import { withToast } from "@/lib/with-toast";
-import { canScore, gameWinner, matchResult, POINT_CAP, POINTS_TO_WIN, type GameScore } from "@/lib/badminton";
+import { canScore, gameWinner, gamesToWin, isValidFinishedGame, matchResult, MAX_BEST_OF, POINT_CAP, POINTS_TO_WIN, type GameScore } from "@/lib/badminton";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import trophy3d from "@/assets/3d/trophy.png";
@@ -24,7 +24,7 @@ function toSlot(key: string): PlayerSlot {
   return { userId: key };
 }
 type MatchType = "SINGLES" | "DOUBLES";
-type Step = "players" | "score" | "review" | "done";
+type Step = "players" | "score" | "manual" | "review" | "done";
 type Slot = { team: 0 | 1; index: 0 | 1 };
 
 const TEAM_STYLE = [
@@ -35,8 +35,8 @@ const TEAM_STYLE = [
 const springy = { type: "spring", stiffness: 520, damping: 30 } as const;
 
 /**
- * Full-screen match scorer: pick players, score games like a scoreboard
- * (or type the final numbers), review, send. Loaded on demand.
+ * Full-screen match scorer: pick players, score live like a scoreboard (or
+ * type the final numbers), review, send. Loaded on demand.
  */
 export function Scorer({
   members,
@@ -53,7 +53,7 @@ export function Scorer({
 }) {
   const [step, setStep] = useState<Step>("players");
   const [type, setType] = useState<MatchType>("DOUBLES");
-  const [bestOf, setBestOf] = useState<1 | 3>(3);
+  const [bestOf, setBestOf] = useState(1);
   const [teams, setTeams] = useState<[(string | null)[], (string | null)[]]>([
     [currentUserId, null],
     [null, null],
@@ -64,6 +64,7 @@ export function Scorer({
   const [pending, start] = useTransition();
   const [result, setResult] = useState<"PENDING" | "CONFIRMED" | null>(null);
   const [ranked, setRanked] = useState(true);
+  const [manual, setManual] = useState(false);
 
   const size = type === "SINGLES" ? 1 : 2;
   const lineup: [string[], string[]] = [
@@ -78,7 +79,10 @@ export function Scorer({
   );
   const who = (key: string): ScorerMember => byId.get(key) ?? { id: key, name: key.slice(2), avatar: "" };
   const finished = games.filter((g) => gameWinner(g) !== null);
-  const verdict = matchResult(finished);
+  // Live scoring only sends finished games; typed games all count as played.
+  const played = manual ? games : finished;
+  const verdict = matchResult(played, bestOf);
+  const blankRow = manual && games.some((g) => g[0] === 0 && g[1] === 0);
   const decided = isDecided(games, games.length - 1, bestOf) && !("error" in verdict);
   const dirty = step !== "players" || teams.flat().filter(Boolean).length > 1;
 
@@ -123,7 +127,7 @@ export function Scorer({
       const next = gs.map((g) => [...g] as GameScore);
       const g = next[current];
       g[team] = Math.max(0, Math.min(POINT_CAP, Math.round(value) || 0));
-      // Typing can overshoot (e.g. 25-10); keep it within what the rules allow.
+      // Typing can overshoot (e.g. 35-20); keep it within what the rules allow.
       const other = g[1 - team];
       if (g[team] > POINTS_TO_WIN && g[team] - other > 2) g[team] = Math.max(POINTS_TO_WIN, other + 2);
       // If the match is decided by this game, later games no longer apply.
@@ -140,16 +144,49 @@ export function Scorer({
 
   function nextGame() {
     if (decided) return setStep("review");
-    if (games.length < 3) {
+    if (games.length < bestOf) {
       setGames((gs) => [...gs, [0, 0]]);
       setCurrent(games.length);
     }
   }
 
+  /** Direct entry: type a finished game's numbers, checked on review. */
+  function typeScore(index: number, team: 0 | 1, value: number) {
+    setGames((gs) => {
+      const next = gs.map((g) => [...g] as GameScore);
+      next[index][team] = Math.max(0, Math.min(99, Math.round(value) || 0));
+      return withManualRows(next, bestOf);
+    });
+  }
+
+  /** Scores entered one way don't carry over to the other. */
+  function startLive() {
+    if (manual) {
+      setGames([[0, 0]]);
+      setCurrent(0);
+      setManual(false);
+    }
+    enterLandscape();
+    setStep("score");
+  }
+
+  function startManual() {
+    setGames((gs) => withManualRows(manual ? gs : [[0, 0]], bestOf));
+    setCurrent(0);
+    setManual(true);
+    setStep("manual");
+  }
+
+  function changeFormat(n: number) {
+    setBestOf(n);
+    setGames((gs) => fitToFormat(gs, n));
+    setCurrent(0);
+  }
+
   function submit() {
     start(async () => {
       const res = await withToast(
-        logMatchAction({ type, team1: lineup[0].map(toSlot), team2: lineup[1].map(toSlot), games: finished, ranked }),
+        logMatchAction({ type, team1: lineup[0].map(toSlot), team2: lineup[1].map(toSlot), bestOf, games: played, ranked }),
         {
           loading: "Mengirim skor…",
           success: (r) =>
@@ -164,7 +201,7 @@ export function Scorer({
   }
 
   function reset() {
-    setGames([[0, 0]]);
+    setGames(manual ? withManualRows([[0, 0]], bestOf) : [[0, 0]]);
     setCurrent(0);
     setResult(null);
     setStep("players");
@@ -175,7 +212,7 @@ export function Scorer({
     { key: "score", label: "Skor" },
     { key: "review", label: "Kirim" },
   ];
-  const stepIndex = Math.min(2, steps.findIndex((s) => s.key === step) === -1 ? 2 : steps.findIndex((s) => s.key === step));
+  const stepIndex = step === "manual" ? 1 : Math.min(2, steps.findIndex((s) => s.key === step) === -1 ? 2 : steps.findIndex((s) => s.key === step));
 
   return (
     <motion.div
@@ -198,11 +235,11 @@ export function Scorer({
       <header className={cn("relative flex items-center gap-3 px-4 pb-2 pt-[max(14px,env(safe-area-inset-top))]", step === "score" && "hidden")}>
         <button
           type="button"
-          onClick={step === "score" ? () => setStep("players") : step === "review" ? () => setStep("score") : requestClose}
-          aria-label={step === "score" || step === "review" ? "Kembali" : "Tutup"}
+          onClick={step === "manual" ? () => setStep("players") : step === "review" ? () => setStep(manual ? "manual" : "score") : requestClose}
+          aria-label={step === "manual" || step === "review" ? "Kembali" : "Tutup"}
           className="flex size-11 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
         >
-          {step === "score" || step === "review" ? <ArrowLeft className="size-5" /> : <X className="size-5" />}
+          {step === "manual" || step === "review" ? <ArrowLeft className="size-5" /> : <X className="size-5" />}
         </button>
         {step !== "done" ? (
           <ol className="flex flex-1 items-center justify-center gap-2" aria-label="Langkah">
@@ -249,23 +286,43 @@ export function Scorer({
               </div>
 
               <div role="radiogroup" aria-label="Format" className="mt-2 flex justify-center gap-2">
-                {([3, 1] as const).map((n) => (
+                {([1, 3] as const).map((n) => (
                   <button
                     key={n}
                     type="button"
                     role="radio"
                     aria-checked={bestOf === n}
-                    onClick={() => {
-                      setBestOf(n);
-                      setGames((gs) => (n === 1 ? gs.slice(0, 1) : gs));
-                      setCurrent(0);
-                    }}
+                    onClick={() => changeFormat(n)}
                     className={cn("h-9 rounded-full px-4 text-xs font-bold transition", bestOf === n ? "bg-accent text-navy" : "bg-white/10 text-white/60")}
                   >
-                    {n === 3 ? "Best of 3" : "1 game"}
+                    {n === 1 ? "1 game" : "Best of 3"}
                   </button>
                 ))}
+                {bestOf > 3 ? (
+                  <div role="radio" aria-checked className="flex h-9 items-center gap-1 rounded-full bg-accent px-1 text-xs font-bold text-navy">
+                    <button type="button" onClick={() => changeFormat(bestOf - 2)} aria-label="Kurangi jumlah game" className="flex size-7 items-center justify-center rounded-full bg-navy/10">
+                      <Minus className="size-3.5" />
+                    </button>
+                    <span className="tabular-nums">Best of {bestOf}</span>
+                    <button
+                      type="button"
+                      onClick={() => changeFormat(bestOf + 2)}
+                      disabled={bestOf >= MAX_BEST_OF}
+                      aria-label="Tambah jumlah game"
+                      className="flex size-7 items-center justify-center rounded-full bg-navy/10 disabled:opacity-30"
+                    >
+                      <Plus className="size-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" role="radio" aria-checked={false} onClick={() => changeFormat(5)} className="h-9 rounded-full bg-white/10 px-4 text-xs font-bold text-white/60 transition">
+                    Custom
+                  </button>
+                )}
               </div>
+              <p className="mt-1.5 text-center text-[11px] text-white/45">
+                Tiap game {POINTS_TO_WIN} poin, selisih 2{bestOf > 1 && ` · menang ${gamesToWin(bestOf)} game`}
+              </p>
 
               {/* the court */}
               <div className="relative mt-5 flex flex-1 flex-col overflow-hidden rounded-[30px] border-2 border-white/15 bg-white/[0.04]">
@@ -309,14 +366,68 @@ export function Scorer({
                 </span>
               </div>
 
-              <PrimaryButton
-                disabled={!playersReady}
-                onClick={() => {
-                  enterLandscape();
-                  setStep("score");
-                }}
-              >
-                {playersReady ? "Lanjut ke skor" : lineup[0].length === size && lineup[1].length === size ? "Minimal satu pemain harus member" : "Pilih semua pemain dulu"}
+              {playersReady ? (
+                <div className="flex shrink-0 flex-col gap-2">
+                  <PrimaryButton onClick={startLive}>Skor live</PrimaryButton>
+                  <button type="button" onClick={startManual} className="h-12 w-full rounded-full bg-white/10 text-sm font-bold transition hover:bg-white/20">
+                    Isi skor akhir langsung
+                  </button>
+                </div>
+              ) : (
+                <PrimaryButton disabled>
+                  {lineup[0].length === size && lineup[1].length === size ? "Minimal satu pemain harus member" : "Pilih semua pemain dulu"}
+                </PrimaryButton>
+              )}
+            </StepPane>
+          )}
+
+          {step === "manual" && (
+            <StepPane key="manual">
+              <div>
+                <h2 className="font-display text-3xl font-extrabold">Skor akhir</h2>
+                <p className="mt-1 text-sm text-white/60">
+                  Tiap game {POINTS_TO_WIN} poin, selisih 2{bestOf > 1 && ` · best of ${bestOf}`}
+                </p>
+              </div>
+              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pt-2">
+                <div className="grid grid-cols-[2.5rem_1fr_1fr] gap-3">
+                  <span />
+                  {lineup.map((ids, t) => (
+                    <div key={t} className="flex min-w-0 flex-col items-center gap-1">
+                      <span className={cn("rounded-full px-3 py-1 text-xs font-bold", TEAM_STYLE[t].chip)}>{TEAM_STYLE[t].name}</span>
+                      <span className="w-full truncate text-center text-xs text-white/60">{ids.map((id) => who(id).name).join(" & ")}</span>
+                    </div>
+                  ))}
+                </div>
+                {games.map((g, i) => {
+                  const wrong = !(g[0] === 0 && g[1] === 0) && !isValidFinishedGame(g);
+                  return (
+                    <div key={i} className="grid grid-cols-[2.5rem_1fr_1fr] items-center gap-3">
+                      <span className="text-sm font-bold text-white/50">G{i + 1}</span>
+                      {([0, 1] as const).map((t) => (
+                        <input
+                          key={t}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={g[t] || ""}
+                          placeholder="0"
+                          onChange={(e) => typeScore(i, t, Number(e.target.value.replace(/\D/g, "")))}
+                          aria-label={`Game ${i + 1}, skor ${TEAM_STYLE[t].name}`}
+                          aria-invalid={wrong}
+                          className={cn(
+                            "font-display h-16 w-full min-w-0 rounded-2xl bg-white/10 text-center text-3xl font-extrabold tabular-nums outline-none transition placeholder:text-white/25 focus:ring-2 focus:ring-accent",
+                            wrong && "ring-2 ring-rose-400",
+                            !wrong && gameWinner(g) === t + 1 && "text-accent",
+                          )}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+              <PrimaryButton disabled={blankRow || "error" in verdict} onClick={() => setStep("review")}>
+                {blankRow ? "Isi skor semua game" : "error" in verdict ? verdict.error : "Lanjut"}
               </PrimaryButton>
             </StepPane>
           )}
@@ -332,6 +443,7 @@ export function Scorer({
                 finished.slice(0, current).filter((g) => gameWinner(g) === 1).length,
                 finished.slice(0, current).filter((g) => gameWinner(g) === 2).length,
               ]}
+              needed={gamesToWin(bestOf)}
               decided={decided}
               onBump={bump}
               onNext={() => {
@@ -358,10 +470,10 @@ export function Scorer({
                     {lineup[verdict.winner - 1].map((id) => who(id).name).join(" & ")}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  {finished.map((g, i) => (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {played.map((g, i) => (
                     <div key={i} className="rounded-2xl bg-white/10 px-4 py-2">
-                      <p className="text-[11px] font-bold text-white/50">G{i + 1}</p>
+                      {played.length > 1 && <p className="text-[11px] font-bold text-white/50">G{i + 1}</p>}
                       <p className="font-display text-xl font-extrabold tabular-nums">
                         <span className={cn(g[0] > g[1] && "text-accent")}>{g[0]}</span>
                         <span className="text-white/40">-</span>
@@ -445,12 +557,33 @@ export function Scorer({
 }
 
 /** True when games[0..upto] already decide the match (all of them finished). */
-function isDecided(games: GameScore[], upto: number, bestOf: 1 | 3) {
+function isDecided(games: GameScore[], upto: number, bestOf: number) {
   const played = games.slice(0, upto + 1);
   if (!played.every((g) => gameWinner(g) !== null)) return false;
-  if (bestOf === 1) return played.length >= 1;
   const t1 = played.filter((g) => gameWinner(g) === 1).length;
-  return Math.max(t1, played.length - t1) >= 2;
+  return Math.max(t1, played.length - t1) >= gamesToWin(bestOf);
+}
+
+/** Drop games a shorter format no longer has room for. */
+function fitToFormat(games: GameScore[], bestOf: number) {
+  const out: GameScore[] = [];
+  for (const g of games.slice(0, bestOf)) {
+    out.push(g);
+    if (isDecided(out, out.length - 1, bestOf)) break;
+  }
+  return out;
+}
+
+/** Direct entry shows a row per game until the typed games decide the match. */
+function withManualRows(games: GameScore[], bestOf: number) {
+  const out = fitToFormat(games, bestOf);
+  while (
+    out.length < gamesToWin(bestOf) ||
+    (out.length < bestOf && out.every((g) => gameWinner(g) !== null) && !isDecided(out, out.length - 1, bestOf))
+  ) {
+    out.push([0, 0]);
+  }
+  return out;
 }
 
 function StepPane({ children }: { children: React.ReactNode }) {
@@ -467,7 +600,7 @@ function StepPane({ children }: { children: React.ReactNode }) {
   );
 }
 
-function PrimaryButton({ children, disabled, onClick }: { children: React.ReactNode; disabled?: boolean; onClick: () => void }) {
+function PrimaryButton({ children, disabled, onClick }: { children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
   return (
     <motion.button
       type="button"
@@ -523,6 +656,7 @@ function LandscapeScoreboard({
   onSelectGame,
   teams,
   gamesWon,
+  needed,
   decided,
   onBump,
   onNext,
@@ -534,6 +668,7 @@ function LandscapeScoreboard({
   onSelectGame: (i: number) => void;
   teams: [ScorerMember[], ScorerMember[]];
   gamesWon: [number, number];
+  needed: number;
   decided: boolean;
   onBump: (team: 0 | 1, delta: 1 | -1) => void;
   onNext: () => void;
@@ -543,7 +678,7 @@ function LandscapeScoreboard({
   const portrait = usePortrait();
   const game = games[current];
   const winner = gameWinner(game);
-  const deuce = !winner && game[0] >= 20 && game[0] === game[1];
+  const deuce = !winner && game[0] >= POINTS_TO_WIN - 1 && game[0] === game[1];
 
   return (
     <motion.div
@@ -566,7 +701,7 @@ function LandscapeScoreboard({
       />
 
       <div className="relative grid min-h-0 flex-1 grid-cols-[1fr_minmax(118px,22%)_1fr] gap-3 p-3 pl-[max(12px,env(safe-area-inset-left))] pr-[max(12px,env(safe-area-inset-right))]">
-        <TeamPanel team={0} members={teams[0]} game={game} gameIndex={current} gamesWon={gamesWon} onBump={onBump} />
+        <TeamPanel team={0} members={teams[0]} game={game} matchPoint={gamesWon[0] === needed - 1} onBump={onBump} />
 
         {/* center column */}
         <div className="flex min-h-0 flex-col items-center gap-2 py-1">
@@ -579,36 +714,38 @@ function LandscapeScoreboard({
             </button>
           </div>
           <Image src={logoLight} alt="PB Wisdom" className="w-full max-w-[120px]" priority />
-          <div className="flex w-full flex-col gap-1.5" role="tablist" aria-label="Game">
-            {games.map((g, i) => {
-              const w = gameWinner(g);
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  role="tab"
-                  aria-selected={i === current}
-                  onClick={() => onSelectGame(i)}
-                  className={cn(
-                    "flex h-9 items-center justify-between rounded-full px-3 text-xs font-bold transition",
-                    i === current ? "bg-white text-navy" : "bg-white/10 text-white/70",
-                  )}
-                >
-                  <span>G{i + 1}</span>
-                  <span className={cn("font-display tabular-nums", w && i !== current && "text-accent")}>
-                    {g[0]}-{g[1]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {games.length > 1 && (
+            <div className="flex min-h-0 w-full shrink flex-col gap-1.5 overflow-y-auto" role="tablist" aria-label="Game">
+              {games.map((g, i) => {
+                const w = gameWinner(g);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    role="tab"
+                    aria-selected={i === current}
+                    onClick={() => onSelectGame(i)}
+                    className={cn(
+                      "flex h-9 shrink-0 items-center justify-between rounded-full px-3 text-xs font-bold transition",
+                      i === current ? "bg-white text-navy" : "bg-white/10 text-white/70",
+                    )}
+                  >
+                    <span>G{i + 1}</span>
+                    <span className={cn("font-display tabular-nums", w && i !== current && "text-accent")}>
+                      {g[0]}-{g[1]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-center">
             <AnimatePresence mode="wait">
               {winner ? (
                 <motion.div key="won" initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={springy} className="flex flex-col items-center gap-1 text-white">
                   <Trophy className="size-6 text-accent" />
                   <p className="font-display text-sm font-extrabold leading-tight">
-                    Game {current + 1}
+                    {games.length > 1 || !decided ? `Game ${current + 1}` : "Match"}
                     <br />
                     untuk {TEAM_STYLE[winner - 1].name}
                   </p>
@@ -638,7 +775,7 @@ function LandscapeScoreboard({
           )}
         </div>
 
-        <TeamPanel team={1} members={teams[1]} game={game} gameIndex={current} gamesWon={gamesWon} onBump={onBump} />
+        <TeamPanel team={1} members={teams[1]} game={game} matchPoint={gamesWon[1] === needed - 1} onBump={onBump} />
       </div>
     </motion.div>
   );
@@ -649,15 +786,14 @@ function TeamPanel({
   team,
   members,
   game,
-  gameIndex,
-  gamesWon,
+  matchPoint,
   onBump,
 }: {
   team: 0 | 1;
   members: ScorerMember[];
   game: GameScore;
-  gameIndex: number;
-  gamesWon: [number, number];
+  /** One more game wins this team the match. */
+  matchPoint: boolean;
   onBump: (team: 0 | 1, delta: 1 | -1) => void;
 }) {
   const value = game[team];
@@ -665,8 +801,8 @@ function TeamPanel({
   const enabled = canScore(game, team === 0 ? 1 : 2);
   const lost = winner !== null && winner !== team + 1;
   const theirs = game[1 - team];
-  const atPoint = !winner && ((value >= 20 && value > theirs) || value === POINT_CAP - 1);
-  const tag = winner === team + 1 ? "Menang game" : atPoint ? (gamesWon[team] === 1 || gameIndex === 2 ? "Match point" : "Game point") : null;
+  const atPoint = !winner && ((value >= POINTS_TO_WIN - 1 && value > theirs) || value === POINT_CAP - 1);
+  const tag = winner === team + 1 ? "Menang game" : atPoint ? (matchPoint ? "Match point" : "Game point") : null;
   const name = TEAM_STYLE[team].name;
 
   return (
